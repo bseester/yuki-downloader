@@ -128,6 +128,15 @@
                 <div class="quality-chips" id="qualityChips" role="radiogroup"></div>
               </div>
 
+              <!-- Spotify Lyrics Option Row -->
+              <div class="quality-row hidden" id="lyricsOptionRow">
+                <span class="quality-label">Sözler</span>
+                <button class="feature-chip" id="lyricsToggleChip" type="button" title="Şarkı sözlerini indirme ayarı">
+                  <span class="chip-dot" id="lyricsChipDot"></span>
+                  <span id="lyricsChipText">Şarkı Sözleri: Kapalı</span>
+                </button>
+              </div>
+
               <!-- Save location -->
               <div class="save-row">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -287,12 +296,27 @@
 
             <div class="setting-row">
               <div class="setting-info">
-                <div class="setting-name">Şarkı Sözlerini (.lrc) Birlikte İndir</div>
-                <div class="setting-desc">Şarkı sözü dosyasını şarkıyla aynı isimde kaydeder</div>
+                <div class="setting-name">Şarkı Sözlerini İndir (Genius & MP3 İçi)</div>
+                <div class="setting-desc">Kapalıyken söz aramasını atlar, şarkı başına indirmeyi 3-4 saniye hızlandırır</div>
               </div>
               <div class="setting-controls">
                 <label class="switch">
-                  <input type="checkbox" id="settingSpotifyLyrics" />
+                  <input type="checkbox" id="settingSpotifyDownloadLyrics" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="setting-divider"></div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-name">Ayrı Şarkı Sözü Dosyası (.lrc) Oluştur</div>
+                <div class="setting-desc">Müzik çalarlar ve karaoke için şarkıyla aynı isimde .lrc altyazı dosyası üretir</div>
+              </div>
+              <div class="setting-controls">
+                <label class="switch">
+                  <input type="checkbox" id="settingSpotifyLyricsLrc" />
                   <span class="slider"></span>
                 </label>
               </div>

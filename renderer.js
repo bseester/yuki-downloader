@@ -49,7 +49,11 @@ const changeFolderBtn   = document.getElementById('changeFolderBtn');
 const openFolderBtn     = document.getElementById('openFolderBtn');
 const clearCompletedBtn = document.getElementById('clearCompletedBtn');
 
-// Settings Elements
+// Settings & Preview Lyrics Elements
+const lyricsOptionRow              = document.getElementById('lyricsOptionRow');
+const lyricsToggleChip             = document.getElementById('lyricsToggleChip');
+const lyricsChipDot                = document.getElementById('lyricsChipDot');
+const lyricsChipText               = document.getElementById('lyricsChipText');
 const settingDownloadPath          = document.getElementById('settingDownloadPath');
 const settingChangeFolderBtn       = document.getElementById('settingChangeFolderBtn');
 const settingOpenFolderBtn         = document.getElementById('settingOpenFolderBtn');
@@ -58,7 +62,8 @@ const settingDefaultAudioQuality   = document.getElementById('settingDefaultAudi
 const settingAutoTurkishSubtitles  = document.getElementById('settingAutoTurkishSubtitles');
 const settingSpotifyPlaylistFolder = document.getElementById('settingSpotifyPlaylistFolder');
 const settingSpotifyFastEngine     = document.getElementById('settingSpotifyFastEngine');
-const settingSpotifyLyrics         = document.getElementById('settingSpotifyLyrics');
+const settingSpotifyDownloadLyrics = document.getElementById('settingSpotifyDownloadLyrics');
+const settingSpotifyLyricsLrc      = document.getElementById('settingSpotifyLyricsLrc');
 const settingSystemNotifications   = document.getElementById('settingSystemNotifications');
 const refreshToolsBtn              = document.getElementById('refreshToolsBtn');
 const ytdlpPath                    = document.getElementById('ytdlpPath');
@@ -243,6 +248,8 @@ downloadBtn.addEventListener('click', () => {
     source:               currentSource,
     isPlaylist:           Boolean(currentInfo.isPlaylist),
     autoTurkishSubtitles: appSettings.autoTurkishSubtitles !== false,
+    downloadLyrics:       appSettings.spotifyDownloadLyrics === true,
+    lyricsLrc:            appSettings.spotifyLyricsLrc === true,
   });
 });
 
@@ -368,6 +375,14 @@ function showPreview(info) {
     subtitlesBadge?.classList.remove('hidden');
   } else {
     subtitlesBadge?.classList.add('hidden');
+  }
+
+  // Lyrics toggle chip for Spotify
+  if (currentSource === 'spotify') {
+    lyricsOptionRow?.classList.remove('hidden');
+    updateLyricsChipUI();
+  } else {
+    lyricsOptionRow?.classList.add('hidden');
   }
 
   // Tab switcher state
@@ -529,11 +544,36 @@ async function loadAndApplySettings() {
 
     settingSpotifyPlaylistFolder.checked = appSettings.spotifyPlaylistFolder !== false;
     settingSpotifyFastEngine.checked     = appSettings.spotifyFastEngine !== false;
-    settingSpotifyLyrics.checked         = Boolean(appSettings.spotifyLyrics);
+    if (settingSpotifyDownloadLyrics) {
+      settingSpotifyDownloadLyrics.checked = appSettings.spotifyDownloadLyrics === true;
+    }
+    if (settingSpotifyLyricsLrc) {
+      settingSpotifyLyricsLrc.checked = appSettings.spotifyLyricsLrc === true;
+    }
     settingSystemNotifications.checked   = appSettings.systemNotifications !== false;
+    updateLyricsChipUI();
   } catch (err) {
     console.error('Settings load error:', err);
   }
+}
+
+function updateLyricsChipUI() {
+  const isEnabled = appSettings.spotifyDownloadLyrics === true;
+  if (lyricsToggleChip) {
+    lyricsToggleChip.classList.toggle('active', isEnabled);
+    if (lyricsChipText) {
+      lyricsChipText.textContent = isEnabled ? 'Şarkı Sözleri: Açık' : 'Şarkı Sözleri: Kapalı';
+    }
+  }
+}
+
+if (lyricsToggleChip) {
+  lyricsToggleChip.addEventListener('click', () => {
+    const newState = !(appSettings.spotifyDownloadLyrics === true);
+    updateSetting('spotifyDownloadLyrics', newState);
+    if (settingSpotifyDownloadLyrics) settingSpotifyDownloadLyrics.checked = newState;
+    updateLyricsChipUI();
+  });
 }
 
 async function updateSetting(key, val) {
@@ -582,9 +622,18 @@ settingSpotifyFastEngine.addEventListener('change', (e) => {
   updateSetting('spotifyFastEngine', e.target.checked);
 });
 
-settingSpotifyLyrics.addEventListener('change', (e) => {
-  updateSetting('spotifyLyrics', e.target.checked);
-});
+if (settingSpotifyDownloadLyrics) {
+  settingSpotifyDownloadLyrics.addEventListener('change', (e) => {
+    updateSetting('spotifyDownloadLyrics', e.target.checked);
+    updateLyricsChipUI();
+  });
+}
+
+if (settingSpotifyLyricsLrc) {
+  settingSpotifyLyricsLrc.addEventListener('change', (e) => {
+    updateSetting('spotifyLyricsLrc', e.target.checked);
+  });
+}
 
 settingSystemNotifications.addEventListener('change', (e) => {
   updateSetting('systemNotifications', e.target.checked);

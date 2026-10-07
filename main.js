@@ -16,7 +16,8 @@ const DEFAULT_SETTINGS = {
   defaultAudioQuality: '320k',
   autoTurkishSubtitles: true,
   spotifyPlaylistFolder: true,
-  spotifyLyrics: false,
+  spotifyDownloadLyrics: false,
+  spotifyLyricsLrc: false,
   spotifyFastEngine: true,
   systemNotifications: true,
   soundAlert: true,
@@ -302,9 +303,9 @@ function fetchSpotifyInfo(url) {
 }
 
 // Start download — routes to yt-dlp or spotdl
-ipcMain.on('start-download', (evt, { id, url, format, quality, outputDir, source, isPlaylist, autoTurkishSubtitles }) => {
+ipcMain.on('start-download', (evt, { id, url, format, quality, outputDir, source, isPlaylist, autoTurkishSubtitles, downloadLyrics, lyricsLrc }) => {
   if (source === 'spotify' || isSpotifyUrl(url)) {
-    startSpotifyDownload(evt, { id, url, quality, outputDir, isPlaylist });
+    startSpotifyDownload(evt, { id, url, quality, outputDir, isPlaylist, downloadLyrics, lyricsLrc });
   } else {
     startYtdlpDownload(evt, { id, url, format, quality, outputDir, autoTurkishSubtitles });
   }
@@ -343,11 +344,19 @@ function startYtdlpDownload(evt, { id, url, format, quality, outputDir, autoTurk
   });
 }
 
-function startSpotifyDownload(evt, { id, url, quality, outputDir, isPlaylist }) {
+function startSpotifyDownload(evt, { id, url, quality, outputDir, isPlaylist, downloadLyrics, lyricsLrc }) {
   const settings = loadSettings();
   const dir = outputDir || settings.downloadDir || DOWNLOADS_DIR;
   const bitrate = quality || settings.defaultAudioQuality || '320k';
   const isBatch = isPlaylist || url.includes('/playlist/') || url.includes('/album/') || url.includes('/artist/');
+
+  const shouldDownloadLyrics = downloadLyrics !== undefined
+    ? downloadLyrics
+    : (settings.spotifyDownloadLyrics === true);
+
+  const shouldGenerateLrc = lyricsLrc !== undefined
+    ? lyricsLrc
+    : (settings.spotifyLyricsLrc === true);
 
   // Output formatting:
   // If batch & playlistFolder setting is on, put tracks inside a subfolder named after the list
@@ -359,18 +368,26 @@ function startSpotifyDownload(evt, { id, url, quality, outputDir, isPlaylist }) 
     url,
     '--output', outputTemplate,
     '--bitrate', bitrate,
+  ];
+
+  // Disable lyrics providers if lyrics download is turned off
+  if (!shouldDownloadLyrics) {
+    args.push('--lyrics');
+  }
+
+  args.push(
     '--format', 'mp3',
     '--ffmpeg', FFMPEG_BIN,
-    '--simple-tui',
-  ];
+    '--simple-tui'
+  );
 
   // Fast audio engine preference
   if (settings.spotifyFastEngine) {
     args.push('--audio', 'youtube', 'youtube-music');
   }
 
-  // Lyrics option
-  if (settings.spotifyLyrics) {
+  // Lyrics option (.lrc file)
+  if (shouldDownloadLyrics && shouldGenerateLrc) {
     args.push('--generate-lrc');
   }
 
