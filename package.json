@@ -1,0 +1,18 @@
+{
+  "name": "yuki-downloader",
+  "version": "1.0.0",
+  "description": "Elegant macOS YouTube MP4/MP3 Downloader",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev"
+  },
+  "devDependencies": {
+    "electron": "^29.4.6"
+  },
+  "author": "Yuki",
+  "license": "MIT",
+  "allowScripts": {
+    "electron@29.4.6": true
+  }
+}

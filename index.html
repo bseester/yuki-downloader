@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Yuki — YouTube Downloader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Traffic-light drag region -->
+  <div class="titlebar-drag"></div>
+
+  <div class="app-shell">
+
+    <!-- ── HEADER ──────────────────────────────────────────────── -->
+    <header class="app-header">
+      <div class="app-logo">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <circle cx="14" cy="14" r="14" fill="url(#logoGrad)"/>
+          <path d="M11 9.5L20 14L11 18.5V9.5Z" fill="white"/>
+          <defs>
+            <linearGradient id="logoGrad" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#FF6B6B"/>
+              <stop offset="1" stop-color="#FF3366"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="app-name">Yuki</span>
+      </div>
+
+      <nav class="tab-switcher" role="tablist">
+        <button class="tab active" data-format="mp4" role="tab" aria-selected="true" id="tab-mp4">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="2" width="20" height="20" rx="4"/><polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/></svg>
+          MP4 Video
+        </button>
+        <button class="tab" data-format="mp3" role="tab" aria-selected="false" id="tab-mp3">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          MP3 Ses
+        </button>
+      </nav>
+
+      <button class="icon-btn" id="openFolderBtn" title="İndirilenler klasörünü aç">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      </button>
+    </header>
+
+    <!-- ── URL INPUT ───────────────────────────────────────────── -->
+    <section class="url-section">
+      <div class="url-glass-card" id="urlCard">
+        <div class="url-bar">
+          <div class="url-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          </div>
+          <input
+            type="url"
+            id="urlInput"
+            class="url-input"
+            placeholder="YouTube, Vimeo, Twitter… URL yapıştırın"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="paste-btn" id="pasteBtn" title="Panodan yapıştır">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button class="clear-btn hidden" id="clearBtn" title="Temizle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── PREVIEW CARD ────────────────────────────────────────── -->
+    <section class="preview-section hidden" id="previewSection">
+      <div class="preview-card glass-card" id="previewCard">
+
+        <!-- Loading skeleton -->
+        <div class="skeleton-wrap" id="skeletonWrap">
+          <div class="skeleton thumb-skel"></div>
+          <div class="skeleton-meta">
+            <div class="skeleton line w80"></div>
+            <div class="skeleton line w50"></div>
+            <div class="skeleton line w30"></div>
+          </div>
+        </div>
+
+        <!-- Loaded content -->
+        <div class="preview-content hidden" id="previewContent">
+          <div class="thumb-wrap">
+            <img id="thumbImg" class="thumb-img" src="" alt="Thumbnail" />
+            <div class="duration-badge" id="durationBadge"></div>
+          </div>
+          <div class="video-meta">
+            <h2 class="video-title" id="videoTitle"></h2>
+            <p  class="video-channel" id="videoChannel"></p>
+
+            <!-- Quality Selector -->
+            <div class="quality-row" id="qualityRow">
+              <span class="quality-label">Kalite</span>
+              <div class="quality-chips" id="qualityChips" role="radiogroup"></div>
+            </div>
+
+            <!-- Save location -->
+            <div class="save-row">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+              <span class="save-path" id="savePath">~/Downloads</span>
+              <button class="link-btn" id="changeFolderBtn">Değiştir</button>
+            </div>
+
+            <button class="download-btn" id="downloadBtn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              İndir
+            </button>
+          </div>
+        </div>
+
+        <!-- Error state -->
+        <div class="preview-error hidden" id="previewError">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <p id="errorMsg">Video bilgisi alınamadı.</p>
+          <button class="link-btn" id="retryBtn">Tekrar dene</button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ── DOWNLOAD LIST ───────────────────────────────────────── -->
+    <section class="downloads-section" id="downloadsSection">
+      <div class="section-header">
+        <h3 class="section-title">İndirmeler</h3>
+        <button class="link-btn" id="clearCompletedBtn">Tamamlananları temizle</button>
+      </div>
+      <div class="downloads-list" id="downloadsList">
+        <div class="empty-state" id="emptyState">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".35">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7,10 12,15 17,10"/>
+            <line x1="12" y1="15" x2="12" y2="3"/>
+          </svg>
+          <p>Henüz bir indirme yok</p>
+          <small>Yukarıya bir URL yapıştırarak başlayın</small>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /app-shell -->
+
+  <script src="renderer.js"></script>
+</body>
+</html>
