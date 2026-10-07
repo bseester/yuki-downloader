@@ -6,7 +6,7 @@ const os = require('os');
 
 // ─── Paths ────────────────────────────────────────────────────────────────────
 const DOWNLOADS_DIR = path.join(os.homedir(), 'Downloads');
-const ICON_PATH     = path.join(__dirname, 'assets', 'icon.png');
+const ICON_PATH = path.join(__dirname, 'assets', 'icon.png');
 
 // Try to locate yt-dlp and ffmpeg from common macOS locations
 function findBin(name) {
@@ -25,9 +25,9 @@ function findBin(name) {
   }
 }
 
-const YTDLP_BIN   = findBin('yt-dlp');
-const FFMPEG_BIN  = findBin('ffmpeg');
-const SPOTDL_BIN  = findBin('spotdl');
+const YTDLP_BIN = findBin('yt-dlp');
+const FFMPEG_BIN = findBin('ffmpeg');
+const SPOTDL_BIN = findBin('spotdl');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function isSpotifyUrl(url) {
@@ -139,12 +139,12 @@ function fetchYtdlpInfo(url) {
       try {
         const info = JSON.parse(raw);
         resolve({
-          title:     info.title,
-          channel:   info.uploader || info.channel || '',
-          duration:  info.duration_string || formatDuration(info.duration),
+          title: info.title,
+          channel: info.uploader || info.channel || '',
+          duration: info.duration_string || formatDuration(info.duration),
           thumbnail: info.thumbnail,
-          formats:   parseFormats(info.formats || []),
-          source:    'youtube',
+          formats: parseFormats(info.formats || []),
+          source: 'youtube',
         });
       } catch {
         reject(new Error('JSON parse error'));
@@ -170,25 +170,25 @@ function fetchSpotifyInfo(url) {
       // Parse JSON array from spotdl meta output
       try {
         const lines = raw.split('\n').filter(l => l.trim().startsWith('[') || l.trim().startsWith('{'));
-        const json  = JSON.parse(lines.join('') || raw);
+        const json = JSON.parse(lines.join('') || raw);
         const track = Array.isArray(json) ? json[0] : json;
         resolve({
-          title:     track.name || track.title || 'Spotify Track',
-          channel:   (track.artists || []).map(a => a.name || a).join(', ') || track.artist || '',
-          duration:  formatDuration(Math.round((track.duration_ms || 0) / 1000)),
+          title: track.name || track.title || 'Spotify Track',
+          channel: (track.artists || []).map(a => a.name || a).join(', ') || track.artist || '',
+          duration: formatDuration(Math.round((track.duration_ms || 0) / 1000)),
           thumbnail: track.cover_url || track.album?.images?.[0]?.url || '',
-          formats:   { video: [], audio: ['320k', '192k', '128k'] },
-          source:    'spotify',
+          formats: { video: [], audio: ['320k', '192k', '128k'] },
+          source: 'spotify',
         });
       } catch {
         // Fallback: return minimal info so user can still download
         resolve({
-          title:    'Spotify Track',
-          channel:  '',
+          title: 'Spotify Track',
+          channel: '',
           duration: '',
           thumbnail: '',
-          formats:  { video: [], audio: ['320k', '192k', '128k'] },
-          source:   'spotify',
+          formats: { video: [], audio: ['320k', '192k', '128k'] },
+          source: 'spotify',
         });
       }
     });
@@ -205,7 +205,7 @@ ipcMain.on('start-download', (evt, { id, url, format, quality, outputDir, source
 });
 
 function startYtdlpDownload(evt, { id, url, format, quality, outputDir }) {
-  const dir  = outputDir || DOWNLOADS_DIR;
+  const dir = outputDir || DOWNLOADS_DIR;
   const args = buildArgs(url, format, quality, dir);
   const proc = spawn(YTDLP_BIN, args, { env: { ...process.env, PATH: process.env.PATH + ':/opt/homebrew/bin:/usr/local/bin' } });
   activeProcesses.set(id, proc);
@@ -235,15 +235,15 @@ function startYtdlpDownload(evt, { id, url, format, quality, outputDir }) {
 }
 
 function startSpotifyDownload(evt, { id, url, quality, outputDir }) {
-  const dir    = outputDir || DOWNLOADS_DIR;
+  const dir = outputDir || DOWNLOADS_DIR;
   const bitrate = quality || '320k';
   // spotdl <url> --output <dir> --bitrate <bitrate> --format mp3
   const args = [
     url,
-    '--output',  dir,
+    '--output', dir,
     '--bitrate', bitrate,
-    '--format',  'mp3',
-    '--ffmpeg',  FFMPEG_BIN,
+    '--format', 'mp3',
+    '--ffmpeg', FFMPEG_BIN,
   ];
 
   const proc = spawn(SPOTDL_BIN, args, {
@@ -283,7 +283,7 @@ function startSpotifyDownload(evt, { id, url, quality, outputDir }) {
       evt.sender.send('download-error', { id, message: `spotdl hata kodu: ${code}` });
     }
   });
-});
+}
 
 // Cancel download
 ipcMain.on('cancel-download', (_evt, id) => {
@@ -351,8 +351,8 @@ function parseFormats(formats) {
   const videoQualities = heights.map(h => {
     if (h >= 2160) return '4K';
     if (h >= 1080) return '1080p';
-    if (h >= 720)  return '720p';
-    if (h >= 480)  return '480p';
+    if (h >= 720) return '720p';
+    if (h >= 480) return '480p';
     return `${h}p`;
   });
 
