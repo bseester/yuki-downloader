@@ -8,10 +8,11 @@
 let currentFormat    = 'mp4';
 let currentQuality   = null;
 let currentInfo      = null;
-let currentSaveDir   = null;    // null = use default Downloads
+let currentSaveDir   = null;
+let currentSource    = 'youtube'; // 'youtube' | 'spotify'
 let fetchAbortCtrl   = null;
 let fetchTimeout     = null;
-const downloads      = new Map(); // id → { title, thumb, format, quality }
+const downloads      = new Map();
 
 // ─── DOM refs ─────────────────────────────────────────────
 const urlInput          = document.getElementById('urlInput');
@@ -52,14 +53,15 @@ document.querySelectorAll('.tab').forEach(tab => {
 urlInput.addEventListener('input', () => {
   const val = urlInput.value.trim();
   clearBtn.classList.toggle('hidden', !val);
+  updateSourceBadge(val);
   if (val) scheduleInfoFetch(val);
   else hidePreview();
 });
 
 urlInput.addEventListener('paste', (e) => {
-  // handle synchronously since the value updates on next tick
   setTimeout(() => {
     const val = urlInput.value.trim();
+    updateSourceBadge(val);
     if (val) scheduleInfoFetch(val);
   }, 0);
 });
@@ -116,9 +118,10 @@ downloadBtn.addEventListener('click', () => {
     thumb:   currentInfo.thumbnail,
     format:  currentFormat,
     quality: currentQuality,
+    source:  currentSource,
   });
 
-  addDownloadItem(id, currentInfo, currentFormat, currentQuality);
+  addDownloadItem(id, currentInfo, currentFormat, currentQuality, currentSource);
 
   window.api.startDownload({
     id,
@@ -126,6 +129,7 @@ downloadBtn.addEventListener('click', () => {
     format:    currentFormat,
     quality:   currentQuality,
     outputDir: currentSaveDir,
+    source:    currentSource,
   });
 });
 
@@ -211,10 +215,22 @@ function showPreview(info) {
   skeletonWrap.classList.add('hidden');
   previewError.classList.add('hidden');
 
-  thumbImg.src       = info.thumbnail || '';
+  thumbImg.src              = info.thumbnail || '';
   durationBadge.textContent = info.duration || '';
-  videoTitle.textContent    = info.title || 'Bilinmeyen Video';
+  videoTitle.textContent    = info.title || 'Bilinmeyen';
   videoChannel.textContent  = info.channel || '';
+
+  // For Spotify: force MP3 tab, hide MP4 tab
+  currentSource = info.source || 'youtube';
+  if (currentSource === 'spotify') {
+    currentFormat = 'mp3';
+    document.querySelectorAll('.tab').forEach(t => {
+      if (t.dataset.format === 'mp4') t.classList.add('hidden');
+      if (t.dataset.format === 'mp3') { t.classList.add('active'); t.setAttribute('aria-selected','true'); }
+    });
+  } else {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('hidden'));
+  }
 
   renderQualities(info.formats);
   savePath.textContent = currentSaveDir || '~/Downloads';
@@ -260,7 +276,7 @@ function hidePreview() {
 }
 
 // ─── Download list ────────────────────────────────────────
-function addDownloadItem(id, info, format, quality) {
+function addDownloadItem(id, info, format, quality, source) {
   emptyState.classList.add('hidden');
 
   const item = document.createElement('div');
@@ -268,13 +284,17 @@ function addDownloadItem(id, info, format, quality) {
   item.dataset.id   = id;
   item.dataset.status = 'downloading';
 
-  const formatLabel = format.toUpperCase();
+  const isSpotify    = source === 'spotify';
+  const formatLabel  = isSpotify ? '🎵 Spotify MP3' : format.toUpperCase();
+  const sourceBadge  = isSpotify
+    ? '<span class="src-badge spotify">Spotify</span>'
+    : '';
 
   item.innerHTML = `
     <div class="dl-header">
       <img class="dl-thumb" src="${info.thumbnail || ''}" alt="" />
       <div class="dl-info">
-        <div class="dl-title">${escHtml(info.title)}</div>
+        <div class="dl-title">${escHtml(info.title)}${sourceBadge}</div>
         <div class="dl-meta">
           <span>${formatLabel} · ${quality}</span>
           <span class="status-badge waiting">İndiriliyor…</span>
@@ -300,7 +320,6 @@ function addDownloadItem(id, info, format, quality) {
     </div>
   `;
 
-  // Action buttons
   item.querySelector('[data-action="cancel"]')?.addEventListener('click', () => {
     window.api.cancelDownload(id);
     removeDownloadItem(id);
@@ -332,6 +351,23 @@ function isValidUrl(s) {
     const u = new URL(s);
     return u.protocol === 'http:' || u.protocol === 'https:';
   } catch { return false; }
+}
+
+function isSpotifyUrl(s) {
+  try { return new URL(s).hostname === 'open.spotify.com'; }
+  catch { return false; }
+}
+
+function updateSourceBadge(val) {
+  // Remove old badge
+  document.querySelector('.url-source-badge')?.remove();
+  if (!val) return;
+  if (isSpotifyUrl(val)) {
+    const badge = document.createElement('span');
+    badge.className   = 'url-source-badge spotify';
+    badge.textContent = '🎵 Spotify';
+    document.querySelector('.url-bar').appendChild(badge);
+  }
 }
 
 function escHtml(str) {

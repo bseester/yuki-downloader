@@ -25,8 +25,17 @@ function findBin(name) {
   }
 }
 
-const YTDLP_BIN  = findBin('yt-dlp');
-const FFMPEG_BIN = findBin('ffmpeg');
+const YTDLP_BIN   = findBin('yt-dlp');
+const FFMPEG_BIN  = findBin('ffmpeg');
+const SPOTDL_BIN  = findBin('spotdl');
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function isSpotifyUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.hostname === 'open.spotify.com';
+  } catch { return false; }
+}
 
 // ─── State ────────────────────────────────────────────────────────────────────
 let mainWindow = null;
@@ -109,8 +118,13 @@ app.on('activate', () => {
 
 // ─── IPC Handlers ─────────────────────────────────────────────────────────────
 
-// Fetch video metadata + thumbnail
+// Fetch video/track metadata + thumbnail
 ipcMain.handle('fetch-info', async (_evt, url) => {
+  if (isSpotifyUrl(url)) return fetchSpotifyInfo(url);
+  return fetchYtdlpInfo(url);
+});
+
+function fetchYtdlpInfo(url) {
   return new Promise((resolve, reject) => {
     const args = ['--dump-json', '--no-playlist', url];
     const proc = spawn(YTDLP_BIN, args);
@@ -130,53 +144,143 @@ ipcMain.handle('fetch-info', async (_evt, url) => {
           duration:  info.duration_string || formatDuration(info.duration),
           thumbnail: info.thumbnail,
           formats:   parseFormats(info.formats || []),
+          source:    'youtube',
         });
       } catch {
         reject(new Error('JSON parse error'));
       }
     });
   });
+}
+
+function fetchSpotifyInfo(url) {
+  return new Promise((resolve, reject) => {
+    // spotdl can fetch metadata from Spotify API
+    const args = ['meta', '--json', url];
+    const proc = spawn(SPOTDL_BIN, args, {
+      env: { ...process.env, PATH: process.env.PATH + ':/opt/homebrew/bin:/usr/local/bin' }
+    });
+    let raw = '';
+    let err = '';
+
+    proc.stdout.on('data', d => (raw += d));
+    proc.stderr.on('data', d => (err += d));
+
+    proc.on('close', code => {
+      // Parse JSON array from spotdl meta output
+      try {
+        const lines = raw.split('\n').filter(l => l.trim().startsWith('[') || l.trim().startsWith('{'));
+        const json  = JSON.parse(lines.join('') || raw);
+        const track = Array.isArray(json) ? json[0] : json;
+        resolve({
+          title:     track.name || track.title || 'Spotify Track',
+          channel:   (track.artists || []).map(a => a.name || a).join(', ') || track.artist || '',
+          duration:  formatDuration(Math.round((track.duration_ms || 0) / 1000)),
+          thumbnail: track.cover_url || track.album?.images?.[0]?.url || '',
+          formats:   { video: [], audio: ['320k', '192k', '128k'] },
+          source:    'spotify',
+        });
+      } catch {
+        // Fallback: return minimal info so user can still download
+        resolve({
+          title:    'Spotify Track',
+          channel:  '',
+          duration: '',
+          thumbnail: '',
+          formats:  { video: [], audio: ['320k', '192k', '128k'] },
+          source:   'spotify',
+        });
+      }
+    });
+  });
+}
+
+// Start download — routes to yt-dlp or spotdl
+ipcMain.on('start-download', (evt, { id, url, format, quality, outputDir, source }) => {
+  if (source === 'spotify' || isSpotifyUrl(url)) {
+    startSpotifyDownload(evt, { id, url, quality, outputDir });
+  } else {
+    startYtdlpDownload(evt, { id, url, format, quality, outputDir });
+  }
 });
 
-// Start download
-ipcMain.on('start-download', (evt, { id, url, format, quality, outputDir }) => {
-  const dir = outputDir || DOWNLOADS_DIR;
+function startYtdlpDownload(evt, { id, url, format, quality, outputDir }) {
+  const dir  = outputDir || DOWNLOADS_DIR;
   const args = buildArgs(url, format, quality, dir);
-
   const proc = spawn(YTDLP_BIN, args, { env: { ...process.env, PATH: process.env.PATH + ':/opt/homebrew/bin:/usr/local/bin' } });
   activeProcesses.set(id, proc);
 
-  let lastSpeed = '';
-  let lastEta   = '';
-
   proc.stdout.on('data', data => {
     const line = data.toString();
-    // [download]  12.3% of 45.67MiB at  1.23MiB/s ETA 00:35
     const m = line.match(/\[download\]\s+([\d.]+)%.*?at\s+([\d.]+\s*\S+\/s).*?ETA\s+([\d:]+)/);
-    if (m) {
-      lastSpeed = m[2];
-      lastEta   = m[3];
-      evt.sender.send('download-progress', { id, percent: parseFloat(m[1]), speed: lastSpeed, eta: lastEta });
-    }
-    if (line.includes('[download] 100%') || line.includes('has already been downloaded')) {
+    if (m) evt.sender.send('download-progress', { id, percent: parseFloat(m[1]), speed: m[2], eta: m[3] });
+    if (line.includes('[download] 100%') || line.includes('has already been downloaded'))
       evt.sender.send('download-progress', { id, percent: 100, speed: '', eta: '' });
-    }
   });
 
   proc.stderr.on('data', data => {
-    const line = data.toString();
-    if (line.includes('ERROR')) {
-      evt.sender.send('download-error', { id, message: line.trim() });
-    }
+    if (data.toString().includes('ERROR'))
+      evt.sender.send('download-error', { id, message: data.toString().trim() });
   });
 
   proc.on('close', code => {
     activeProcesses.delete(id);
     if (code === 0) {
       evt.sender.send('download-complete', { id });
-      showNotification('İndirme Tamamlandı ✓', `Dosyanız Downloads klasörüne kaydedildi.`);
+      showNotification('İndirme Tamamlandı ✓', 'Dosyanız Downloads klasörüne kaydedildi.');
     } else if (code !== null) {
-      evt.sender.send('download-error', { id, message: `İşlem hata koduyla kapandı: ${code}` });
+      evt.sender.send('download-error', { id, message: `Hata kodu: ${code}` });
+    }
+  });
+}
+
+function startSpotifyDownload(evt, { id, url, quality, outputDir }) {
+  const dir    = outputDir || DOWNLOADS_DIR;
+  const bitrate = quality || '320k';
+  // spotdl <url> --output <dir> --bitrate <bitrate> --format mp3
+  const args = [
+    url,
+    '--output',  dir,
+    '--bitrate', bitrate,
+    '--format',  'mp3',
+    '--ffmpeg',  FFMPEG_BIN,
+  ];
+
+  const proc = spawn(SPOTDL_BIN, args, {
+    env: { ...process.env, PATH: process.env.PATH + ':/opt/homebrew/bin:/usr/local/bin' }
+  });
+  activeProcesses.set(id, proc);
+
+  // spotdl progress: "Downloaded "Title" to "path""
+  // or:              "Downloading "Title" ..." / percentage lines
+  proc.stdout.on('data', data => {
+    const line = data.toString();
+    // spotdl prints: Downloaded X/Y songs
+    const mFrac = line.match(/(\d+)\/(\d+)/);
+    if (mFrac) {
+      const pct = Math.round((parseInt(mFrac[1]) / parseInt(mFrac[2])) * 100);
+      evt.sender.send('download-progress', { id, percent: pct, speed: '', eta: '' });
+    }
+    if (line.toLowerCase().includes('downloaded') && !line.match(/\d+\/\d+/))
+      evt.sender.send('download-progress', { id, percent: 100, speed: '', eta: '' });
+  });
+
+  proc.stderr.on('data', data => {
+    const line = data.toString();
+    // spotdl writes progress to stderr too
+    const mPct = line.match(/([\d.]+)%/);
+    if (mPct) evt.sender.send('download-progress', { id, percent: parseFloat(mPct[1]), speed: '', eta: '' });
+    if (line.toLowerCase().includes('error'))
+      evt.sender.send('download-error', { id, message: line.trim() });
+  });
+
+  proc.on('close', code => {
+    activeProcesses.delete(id);
+    if (code === 0) {
+      evt.sender.send('download-complete', { id });
+      showNotification('Spotify İndirme Tamamlandı ✓', 'MP3 dosyanız Downloads klasörüne kaydedildi.');
+    } else if (code !== null) {
+      evt.sender.send('download-error', { id, message: `spotdl hata kodu: ${code}` });
     }
   });
 });
