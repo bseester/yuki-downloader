@@ -14,6 +14,7 @@ const DEFAULT_SETTINGS = {
   downloadDir: DOWNLOADS_DIR,
   defaultVideoQuality: '1080p',
   defaultAudioQuality: '320k',
+  autoTurkishSubtitles: true,
   spotifyPlaylistFolder: true,
   spotifyLyrics: false,
   spotifyFastEngine: true,
@@ -301,18 +302,19 @@ function fetchSpotifyInfo(url) {
 }
 
 // Start download — routes to yt-dlp or spotdl
-ipcMain.on('start-download', (evt, { id, url, format, quality, outputDir, source, isPlaylist }) => {
+ipcMain.on('start-download', (evt, { id, url, format, quality, outputDir, source, isPlaylist, autoTurkishSubtitles }) => {
   if (source === 'spotify' || isSpotifyUrl(url)) {
     startSpotifyDownload(evt, { id, url, quality, outputDir, isPlaylist });
   } else {
-    startYtdlpDownload(evt, { id, url, format, quality, outputDir });
+    startYtdlpDownload(evt, { id, url, format, quality, outputDir, autoTurkishSubtitles });
   }
 });
 
-function startYtdlpDownload(evt, { id, url, format, quality, outputDir }) {
+function startYtdlpDownload(evt, { id, url, format, quality, outputDir, autoTurkishSubtitles }) {
   const settings = loadSettings();
   const dir = outputDir || settings.downloadDir || DOWNLOADS_DIR;
-  const args = buildArgs(url, format, quality, dir);
+  const useAutoSubs = autoTurkishSubtitles !== undefined ? autoTurkishSubtitles : (settings.autoTurkishSubtitles !== false);
+  const args = buildArgs(url, format, quality, dir, useAutoSubs);
   const proc = spawn(YTDLP_BIN, args, { env: { ...process.env, PATH: process.env.PATH + ':/opt/homebrew/bin:/usr/local/bin' } });
   activeProcesses.set(id, proc);
 
@@ -527,7 +529,7 @@ ipcMain.handle('choose-folder', async () => {
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function buildArgs(url, format, quality, dir) {
+function buildArgs(url, format, quality, dir, autoTurkishSubtitles = true) {
   const output = path.join(dir, '%(title)s.%(ext)s');
 
   if (format === 'mp3') {
@@ -545,14 +547,27 @@ function buildArgs(url, format, quality, dir) {
   // MP4
   const heightMap = { '4K': 2160, '1080p': 1080, '720p': 720, '480p': 480 };
   const h = heightMap[quality] || 1080;
-  return [
+  const args = [
     '--ffmpeg-location', path.dirname(FFMPEG_BIN),
     '-f', `bestvideo[height<=${h}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${h}]+bestaudio/best[height<=${h}]`,
     '--merge-output-format', 'mp4',
     '-o', output,
     '--no-playlist',
-    url,
   ];
+
+  // Embed Turkish auto-subtitles or official subtitles
+  if (autoTurkishSubtitles !== false) {
+    args.push(
+      '--write-subs',
+      '--write-auto-subs',
+      '--sub-langs', 'tr,tr-orig',
+      '--embed-subs',
+      '--compat-options', 'no-keep-subs'
+    );
+  }
+
+  args.push(url);
+  return args;
 }
 
 function parseFormats(formats) {

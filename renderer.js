@@ -24,6 +24,7 @@ const formatSwitcher   = document.getElementById('formatSwitcher');
 
 // Downloader Elements
 const urlInput          = document.getElementById('urlInput');
+const urlSourceBadge    = document.getElementById('urlSourceBadge');
 const pasteBtn          = document.getElementById('pasteBtn');
 const clearBtn          = document.getElementById('clearBtn');
 const previewSection    = document.getElementById('previewSection');
@@ -34,6 +35,7 @@ const thumbImg          = document.getElementById('thumbImg');
 const durationBadge     = document.getElementById('durationBadge');
 const videoTitle        = document.getElementById('videoTitle');
 const playlistBadge     = document.getElementById('playlistBadge');
+const subtitlesBadge    = document.getElementById('subtitlesBadge');
 const videoChannel      = document.getElementById('videoChannel');
 const qualityChips      = document.getElementById('qualityChips');
 const savePath          = document.getElementById('savePath');
@@ -53,6 +55,7 @@ const settingChangeFolderBtn       = document.getElementById('settingChangeFolde
 const settingOpenFolderBtn         = document.getElementById('settingOpenFolderBtn');
 const settingDefaultVideoQuality   = document.getElementById('settingDefaultVideoQuality');
 const settingDefaultAudioQuality   = document.getElementById('settingDefaultAudioQuality');
+const settingAutoTurkishSubtitles  = document.getElementById('settingAutoTurkishSubtitles');
 const settingSpotifyPlaylistFolder = document.getElementById('settingSpotifyPlaylistFolder');
 const settingSpotifyFastEngine     = document.getElementById('settingSpotifyFastEngine');
 const settingSpotifyLyrics         = document.getElementById('settingSpotifyLyrics');
@@ -105,9 +108,11 @@ function switchView(view) {
   }
 }
 
-// ─── Format Tabs ──────────────────────────────────────────
+// ─── Format Tabs Handling ─────────────────────────────────
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
+    if (tab.classList.contains('disabled')) return;
+
     document.querySelectorAll('.tab').forEach(t => {
       t.classList.remove('active');
       t.setAttribute('aria-selected', 'false');
@@ -119,6 +124,38 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (currentInfo) renderQualities(currentInfo.formats);
   });
 });
+
+function setSpotifyFormatTabs() {
+  currentFormat = 'mp3';
+  document.querySelectorAll('.tab').forEach(t => {
+    if (t.dataset.format === 'mp4') {
+      t.classList.remove('active');
+      t.classList.add('disabled');
+      t.setAttribute('aria-selected', 'false');
+      t.title = 'Spotify bağlantıları için sadece MP3 ses desteklenir';
+    }
+    if (t.dataset.format === 'mp3') {
+      t.classList.add('active');
+      t.classList.remove('disabled');
+      t.setAttribute('aria-selected', 'true');
+      t.title = 'MP3 Ses';
+    }
+  });
+}
+
+function resetFormatTabs() {
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.remove('disabled');
+    t.removeAttribute('title');
+    if (t.dataset.format === currentFormat) {
+      t.classList.add('active');
+      t.setAttribute('aria-selected', 'true');
+    } else {
+      t.classList.remove('active');
+      t.setAttribute('aria-selected', 'false');
+    }
+  });
+}
 
 // ─── URL Input Handling ───────────────────────────────────
 urlInput.addEventListener('input', () => {
@@ -150,6 +187,8 @@ clearBtn.addEventListener('click', () => {
   clearBtn.classList.add('hidden');
   hidePreview();
   currentInfo = null;
+  currentSource = 'youtube';
+  updateSourceBadge('');
 });
 
 // ─── Folder Picker ────────────────────────────────────────
@@ -197,12 +236,13 @@ downloadBtn.addEventListener('click', () => {
 
   window.api.startDownload({
     id,
-    url:        urlInput.value.trim(),
-    format:     currentFormat,
-    quality:    currentQuality,
-    outputDir:  currentSaveDir,
-    source:     currentSource,
-    isPlaylist: Boolean(currentInfo.isPlaylist),
+    url:                  urlInput.value.trim(),
+    format:               currentFormat,
+    quality:              currentQuality,
+    outputDir:            currentSaveDir,
+    source:               currentSource,
+    isPlaylist:           Boolean(currentInfo.isPlaylist),
+    autoTurkishSubtitles: appSettings.autoTurkishSubtitles !== false,
   });
 });
 
@@ -323,18 +363,18 @@ function showPreview(info) {
     downloadBtnText.textContent = currentSource === 'spotify' ? 'İndir (MP3)' : 'İndir';
   }
 
-  // For Spotify: force MP3 tab, hide MP4 tab
-  if (currentSource === 'spotify') {
-    currentFormat = 'mp3';
-    document.querySelectorAll('.tab').forEach(t => {
-      if (t.dataset.format === 'mp4') t.classList.add('hidden');
-      if (t.dataset.format === 'mp3') {
-        t.classList.add('active');
-        t.setAttribute('aria-selected', 'true');
-      }
-    });
+  // Subtitle badge for YouTube MP4
+  if (currentSource === 'youtube' && appSettings.autoTurkishSubtitles !== false) {
+    subtitlesBadge?.classList.remove('hidden');
   } else {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('hidden'));
+    subtitlesBadge?.classList.add('hidden');
+  }
+
+  // Tab switcher state
+  if (currentSource === 'spotify') {
+    setSpotifyFormatTabs();
+  } else {
+    resetFormatTabs();
   }
 
   renderQualities(info.formats);
@@ -412,6 +452,8 @@ function addDownloadItem(id, info, format, quality, source) {
       formatLabel = '🎵 Spotify MP3';
       sourceBadge = '<span class="src-badge spotify">Spotify</span>';
     }
+  } else if (format === 'mp4' && appSettings.autoTurkishSubtitles !== false) {
+    sourceBadge = '<span class="src-badge" style="background:rgba(255,107,107,0.18);color:#ff6b6b;border:1px solid rgba(255,107,107,0.3)">TR Altyazı</span>';
   }
 
   item.innerHTML = `
@@ -481,6 +523,10 @@ async function loadAndApplySettings() {
     settingDefaultVideoQuality.value = appSettings.defaultVideoQuality || '1080p';
     settingDefaultAudioQuality.value = appSettings.defaultAudioQuality || '320k';
 
+    if (settingAutoTurkishSubtitles) {
+      settingAutoTurkishSubtitles.checked = appSettings.autoTurkishSubtitles !== false;
+    }
+
     settingSpotifyPlaylistFolder.checked = appSettings.spotifyPlaylistFolder !== false;
     settingSpotifyFastEngine.checked     = appSettings.spotifyFastEngine !== false;
     settingSpotifyLyrics.checked         = Boolean(appSettings.spotifyLyrics);
@@ -518,6 +564,15 @@ settingDefaultVideoQuality.addEventListener('change', (e) => {
 settingDefaultAudioQuality.addEventListener('change', (e) => {
   updateSetting('defaultAudioQuality', e.target.value);
 });
+
+if (settingAutoTurkishSubtitles) {
+  settingAutoTurkishSubtitles.addEventListener('change', (e) => {
+    updateSetting('autoTurkishSubtitles', e.target.checked);
+    if (currentInfo && currentSource === 'youtube') {
+      subtitlesBadge?.classList.toggle('hidden', !e.target.checked);
+    }
+  });
+}
 
 settingSpotifyPlaylistFolder.addEventListener('change', (e) => {
   updateSetting('spotifyPlaylistFolder', e.target.checked);
@@ -596,14 +651,21 @@ function isSpotifyUrl(s) {
 }
 
 function updateSourceBadge(val) {
-  document.querySelector('.url-source-badge')?.remove();
-  if (!val) return;
+  if (!val) {
+    urlSourceBadge?.classList.add('hidden');
+    resetFormatTabs();
+    return;
+  }
   if (isSpotifyUrl(val)) {
     const isPlaylist = val.includes('/playlist/') || val.includes('/album/');
-    const badge = document.createElement('span');
-    badge.className   = 'url-source-badge spotify';
-    badge.textContent = isPlaylist ? '🎵 Spotify Çalma Listesi' : '🎵 Spotify';
-    document.querySelector('.url-bar').appendChild(badge);
+    if (urlSourceBadge) {
+      urlSourceBadge.textContent = isPlaylist ? '🎵 Spotify Çalma Listesi' : '🎵 Spotify';
+      urlSourceBadge.classList.remove('hidden');
+    }
+    setSpotifyFormatTabs();
+  } else {
+    urlSourceBadge?.classList.add('hidden');
+    resetFormatTabs();
   }
 }
 
