@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Yuki — YouTube Downloader</title>
+  <title>Yuki — YouTube & Spotify Downloader</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -31,119 +31,320 @@
         <span class="app-name">Yuki</span>
       </div>
 
-      <nav class="tab-switcher" role="tablist">
+      <!-- Navigation tabs: Downloader vs Settings -->
+      <nav class="main-nav-tabs" role="tablist">
+        <button class="nav-tab active" id="navDownloaderBtn" role="tab" aria-selected="true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          İndirici
+        </button>
+        <button class="nav-tab" id="navSettingsBtn" role="tab" aria-selected="false">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Ayarlar
+        </button>
+      </nav>
+
+      <!-- Format selector (MP4 / MP3) -->
+      <nav class="tab-switcher" id="formatSwitcher" role="tablist">
         <button class="tab active" data-format="mp4" role="tab" aria-selected="true" id="tab-mp4">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="2" width="20" height="20" rx="4"/><polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="2" width="20" height="20" rx="4"/><polygon points="10,8 16,12 10,16" fill="currentColor" stroke="none"/></svg>
           MP4 Video
         </button>
         <button class="tab" data-format="mp3" role="tab" aria-selected="false" id="tab-mp3">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           MP3 Ses
         </button>
       </nav>
 
       <button class="icon-btn" id="openFolderBtn" title="İndirilenler klasörünü aç">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
       </button>
     </header>
 
-    <!-- ── URL INPUT ───────────────────────────────────────────── -->
-    <section class="url-section">
-      <div class="url-glass-card" id="urlCard">
-        <div class="url-bar">
-          <div class="url-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          </div>
-          <input
-            type="url"
-            id="urlInput"
-            class="url-input"
-            placeholder="YouTube, Vimeo, Twitter… URL yapıştırın"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <button class="paste-btn" id="pasteBtn" title="Panodan yapıştır">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </button>
-          <button class="clear-btn hidden" id="clearBtn" title="Temizle">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-      </div>
-    </section>
+    <!-- ── VIEW 1: DOWNLOADER ───────────────────────────────────── -->
+    <div class="view-panel active" id="downloaderView">
 
-    <!-- ── PREVIEW CARD ────────────────────────────────────────── -->
-    <section class="preview-section hidden" id="previewSection">
-      <div class="preview-card glass-card" id="previewCard">
-
-        <!-- Loading skeleton -->
-        <div class="skeleton-wrap" id="skeletonWrap">
-          <div class="skeleton thumb-skel"></div>
-          <div class="skeleton-meta">
-            <div class="skeleton line w80"></div>
-            <div class="skeleton line w50"></div>
-            <div class="skeleton line w30"></div>
-          </div>
-        </div>
-
-        <!-- Loaded content -->
-        <div class="preview-content hidden" id="previewContent">
-          <div class="thumb-wrap">
-            <img id="thumbImg" class="thumb-img" src="" alt="Thumbnail" />
-            <div class="duration-badge" id="durationBadge"></div>
-          </div>
-          <div class="video-meta">
-            <h2 class="video-title" id="videoTitle"></h2>
-            <p  class="video-channel" id="videoChannel"></p>
-
-            <!-- Quality Selector -->
-            <div class="quality-row" id="qualityRow">
-              <span class="quality-label">Kalite</span>
-              <div class="quality-chips" id="qualityChips" role="radiogroup"></div>
+      <!-- URL Input -->
+      <section class="url-section">
+        <div class="url-glass-card" id="urlCard">
+          <div class="url-bar">
+            <div class="url-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             </div>
-
-            <!-- Save location -->
-            <div class="save-row">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-              <span class="save-path" id="savePath">~/Downloads</span>
-              <button class="link-btn" id="changeFolderBtn">Değiştir</button>
-            </div>
-
-            <button class="download-btn" id="downloadBtn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              İndir
+            <input
+              type="url"
+              id="urlInput"
+              class="url-input"
+              placeholder="YouTube, Spotify şarkı veya çalma listesi URL'si yapıştırın…"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <button class="paste-btn" id="pasteBtn" title="Panodan yapıştır">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+            <button class="clear-btn hidden" id="clearBtn" title="Temizle">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
         </div>
+      </section>
 
-        <!-- Error state -->
-        <div class="preview-error hidden" id="previewError">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          <p id="errorMsg">Video bilgisi alınamadı.</p>
-          <button class="link-btn" id="retryBtn">Tekrar dene</button>
+      <!-- Preview Card -->
+      <section class="preview-section hidden" id="previewSection">
+        <div class="preview-card glass-card" id="previewCard">
+
+          <!-- Loading skeleton -->
+          <div class="skeleton-wrap" id="skeletonWrap">
+            <div class="skeleton thumb-skel"></div>
+            <div class="skeleton-meta">
+              <div class="skeleton line w80"></div>
+              <div class="skeleton line w50"></div>
+              <div class="skeleton line w30"></div>
+            </div>
+          </div>
+
+          <!-- Loaded content -->
+          <div class="preview-content hidden" id="previewContent">
+            <div class="thumb-wrap">
+              <img id="thumbImg" class="thumb-img" src="" alt="Thumbnail" />
+              <div class="duration-badge" id="durationBadge"></div>
+            </div>
+            <div class="video-meta">
+              <div class="title-row">
+                <h2 class="video-title" id="videoTitle"></h2>
+                <span class="playlist-badge hidden" id="playlistBadge">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                  Toplu Çalma Listesi
+                </span>
+              </div>
+              <p class="video-channel" id="videoChannel"></p>
+
+              <!-- Quality Selector -->
+              <div class="quality-row" id="qualityRow">
+                <span class="quality-label" id="qualityLabel">Kalite</span>
+                <div class="quality-chips" id="qualityChips" role="radiogroup"></div>
+              </div>
+
+              <!-- Save location -->
+              <div class="save-row">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <span class="save-path" id="savePath">~/Downloads</span>
+                <button class="link-btn" id="changeFolderBtn">Değiştir</button>
+              </div>
+
+              <button class="download-btn" id="downloadBtn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span id="downloadBtnText">İndir</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Error state -->
+          <div class="preview-error hidden" id="previewError">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p id="errorMsg">Video bilgisi alınamadı.</p>
+            <button class="link-btn" id="retryBtn">Tekrar dene</button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Downloads List -->
+      <section class="downloads-section" id="downloadsSection">
+        <div class="section-header">
+          <h3 class="section-title">İndirmeler</h3>
+          <button class="link-btn" id="clearCompletedBtn">Tamamlananları temizle</button>
+        </div>
+        <div class="downloads-list" id="downloadsList">
+          <div class="empty-state" id="emptyState">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".35">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7,10 12,15 17,10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            <p>Henüz bir indirme yok</p>
+            <small>YouTube veya Spotify linki yapıştırarak indirmeye başlayın</small>
+          </div>
+        </div>
+      </section>
+
+    </div><!-- /downloaderView -->
+
+
+    <!-- ── VIEW 2: SETTINGS ─────────────────────────────────────── -->
+    <div class="view-panel hidden" id="settingsView">
+      <div class="settings-container">
+
+        <div class="settings-header">
+          <h2 class="settings-page-title">Ayarlar</h2>
+          <p class="settings-page-desc">İndirme konumu, varsayılan kaliteler ve Spotify toplu indirme tercihleri.</p>
+        </div>
+
+        <!-- Group 1: General & Download Path -->
+        <div class="settings-group">
+          <h4 class="settings-group-title">Genel & Depolama</h4>
+          <div class="settings-card glass-card">
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-name">Varsayılan İndirme Klasörü</div>
+                <div class="setting-desc" id="settingDownloadPath">~/Downloads</div>
+              </div>
+              <div class="setting-controls">
+                <button class="btn-subtle" id="settingChangeFolderBtn">Klasör Seç</button>
+                <button class="btn-subtle" id="settingOpenFolderBtn">Klasörü Aç</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Group 2: Quality Defaults -->
+        <div class="settings-group">
+          <h4 class="settings-group-title">Varsayılan Kalite Tercihleri</h4>
+          <div class="settings-card glass-card">
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-name">Varsayılan Video Kalitesi (MP4)</div>
+                <div class="setting-desc">Yeni eklenen YouTube videoları için varsayılan çözünürlük</div>
+              </div>
+              <div class="setting-controls">
+                <select class="settings-select" id="settingDefaultVideoQuality">
+                  <option value="4K">4K (2160p)</option>
+                  <option value="1080p">1080p (FHD)</option>
+                  <option value="720p">720p (HD)</option>
+                  <option value="480p">480p (SD)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="setting-divider"></div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-name">Varsayılan Ses Kalitesi (MP3)</div>
+                <div class="setting-desc">YouTube ve Spotify MP3 indirmeleri için ses kalitesi</div>
+              </div>
+              <div class="setting-controls">
+                <select class="settings-select" id="settingDefaultAudioQuality">
+                  <option value="320k">320 kbps (En Yüksek / Stüdyo)</option>
+                  <option value="192k">192 kbps (Yüksek Kalite)</option>
+                  <option value="128k">128 kbps (Standart)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Group 3: Spotify & Batch Download -->
+        <div class="settings-group">
+          <h4 class="settings-group-title">Spotify & Toplu İndirme</h4>
+          <div class="settings-card glass-card">
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-name">Çalma Listelerini Ayrı Klasöre Kaydet</div>
+                <div class="setting-desc">Toplu indirilen çalma listeleri ve albümler için liste adıyla klasör açar</div>
+              </div>
+              <div class="setting-controls">
+                <label class="switch">
+                  <input type="checkbox" id="settingSpotifyPlaylistFolder" checked />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="setting-divider"></div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-name">Hızlı Ses Motoru (YouTube Öncelikli)</div>
+                <div class="setting-desc">YouTube Music gecikmelerini atlar, toplu indirmeleri 3-4 kat hızlandırır</div>
+              </div>
+              <div class="setting-controls">
+                <label class="switch">
+                  <input type="checkbox" id="settingSpotifyFastEngine" checked />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="setting-divider"></div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-name">Şarkı Sözlerini (.lrc) Birlikte İndir</div>
+                <div class="setting-desc">Şarkı sözü dosyasını şarkıyla aynı isimde kaydeder</div>
+              </div>
+              <div class="setting-controls">
+                <label class="switch">
+                  <input type="checkbox" id="settingSpotifyLyrics" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Group 4: Notifications & Audio -->
+        <div class="settings-group">
+          <h4 class="settings-group-title">Bildirimler</h4>
+          <div class="settings-card glass-card">
+            <div class="setting-row">
+              <div class="setting-info">
+                <div class="setting-name">macOS Sistem Bildirimi Gönder</div>
+                <div class="setting-desc">İndirme veya toplu çalma listesi tamamlandığında bildirim verir</div>
+              </div>
+              <div class="setting-controls">
+                <label class="switch">
+                  <input type="checkbox" id="settingSystemNotifications" checked />
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Group 5: Tools & System Diagnostics -->
+        <div class="settings-group">
+          <div class="group-title-row">
+            <h4 class="settings-group-title">Sistem Araçları & Motorlar</h4>
+            <button class="btn-subtle" id="refreshToolsBtn">Yenile</button>
+          </div>
+          <div class="settings-card glass-card">
+            <div class="tool-status-row" id="toolRowYtdlp">
+              <div class="tool-status-info">
+                <span class="tool-title">yt-dlp</span>
+                <span class="tool-sub" id="ytdlpPath">Aranıyor…</span>
+              </div>
+              <span class="tool-badge" id="ytdlpBadge">Kontrol ediliyor</span>
+            </div>
+
+            <div class="setting-divider"></div>
+
+            <div class="tool-status-row" id="toolRowFfmpeg">
+              <div class="tool-status-info">
+                <span class="tool-title">ffmpeg</span>
+                <span class="tool-sub" id="ffmpegPath">Aranıyor…</span>
+              </div>
+              <span class="tool-badge" id="ffmpegBadge">Kontrol ediliyor</span>
+            </div>
+
+            <div class="setting-divider"></div>
+
+            <div class="tool-status-row" id="toolRowSpotdl">
+              <div class="tool-status-info">
+                <span class="tool-title">spotdl (Spotify Motoru)</span>
+                <span class="tool-sub" id="spotdlPath">Aranıyor…</span>
+              </div>
+              <span class="tool-badge" id="spotdlBadge">Kontrol ediliyor</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer / Version -->
+        <div class="settings-footer">
+          <span>Yuki Downloader v1.2 · macOS Liquid Glass Edition</span>
         </div>
 
       </div>
-    </section>
-
-    <!-- ── DOWNLOAD LIST ───────────────────────────────────────── -->
-    <section class="downloads-section" id="downloadsSection">
-      <div class="section-header">
-        <h3 class="section-title">İndirmeler</h3>
-        <button class="link-btn" id="clearCompletedBtn">Tamamlananları temizle</button>
-      </div>
-      <div class="downloads-list" id="downloadsList">
-        <div class="empty-state" id="emptyState">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".35">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="7,10 12,15 17,10"/>
-            <line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          <p>Henüz bir indirme yok</p>
-          <small>Yukarıya bir URL yapıştırarak başlayın</small>
-        </div>
-      </div>
-    </section>
+    </div><!-- /settingsView -->
 
   </div><!-- /app-shell -->
 

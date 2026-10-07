@@ -1,7 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
-  // Fetch video metadata
+  // Fetch video / Spotify metadata
   fetchInfo: (url) => ipcRenderer.invoke('fetch-info', url),
 
   // Download control
@@ -26,7 +26,12 @@ contextBridge.exposeInMainWorld('api', {
   },
 
   // Finder / folder
-  showInFinder:   (p) => ipcRenderer.send('show-in-finder', p),
-  openDownloads:  ()  => ipcRenderer.send('open-downloads'),
-  chooseFolder:   ()  => ipcRenderer.invoke('choose-folder'),
+  showInFinder:  (p) => ipcRenderer.send('show-in-finder', p),
+  openDownloads: ()  => ipcRenderer.send('open-downloads'),
+  chooseFolder:  ()  => ipcRenderer.invoke('choose-folder'),
+
+  // Settings & Tools
+  getSettings:    ()         => ipcRenderer.invoke('get-settings'),
+  saveSettings:   (settings) => ipcRenderer.invoke('save-settings', settings),
+  getToolsStatus: ()         => ipcRenderer.invoke('get-tools-status'),
 });

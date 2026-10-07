@@ -50,6 +50,8 @@ youtube-mp4/
 | **Thumbnail önizleme** | Skeleton loader + kapak resmi + süre badge |
 | **MP4 kaliteleri** | 4K / 1080p / 720p / 480p (videoya göre dinamik) |
 | **MP3 kaliteleri** | 320k / 192k / 128k |
+| **Spotify Toplu İndirme** | Çalma listeleri (`playlist`) ve albümleri (`album`) tek tıkla toplu MP3 indirme |
+| **Ayarlar Sekmesi** | Klasör konumu, varsayılan kalite, hızlı motor, lrc sözlükleri ve araç teşhisi |
 | **Eşzamanlı indirme** | Sınırsız, her biri kendi progress bar'ı |
 | **İptal** | Tek tıkla aktif indirmeyi durdur |
 | **Tray app** | Menu bar'dan küçük simgeyle kontrol |
@@ -58,14 +60,11 @@ youtube-mp4/
 
 ---
 
-## ⚙️ Desteklenen Siteler
+## ⚙️ Desteklenen Servisler
 
-yt-dlp 1000+ site destekler:
-- YouTube, YouTube Music
-- Vimeo, Dailymotion
-- Twitter/X, Instagram, TikTok
-- SoundCloud (MP3)
-- Ve çok daha fazlası…
+- **Spotify**: Tekil şarkılar, Çalma Listeleri (`playlist`), Albümler (`album`) — 320k/192k/128k MP3
+- **YouTube & YouTube Music**: 4K, 1080p, 720p MP4 Video ve 320k MP3
+- **Vimeo, Twitter/X, Instagram, TikTok, SoundCloud** ve yt-dlp destekli 1000+ platform
 
 ---
 
