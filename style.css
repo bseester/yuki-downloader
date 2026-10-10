@@ -74,16 +74,35 @@
   }
 }
 
-html, body {
+html {
+  background-color: #181920;
+  background: #181920;
+  min-height: 100%;
+  min-height: -webkit-fill-available;
+}
+
+body {
   height: 100%;
   overflow: hidden;
   font-family: 'Inter', -apple-system, 'SF Pro Display', BlinkMacSystemFont, sans-serif;
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
+  background-color: #181920;
   background: var(--app-bg);
+  background-attachment: fixed;
   color: var(--text-primary);
   user-select: none;
   cursor: default;
+}
+
+@media (prefers-color-scheme: light) {
+  html {
+    background-color: #e4e7ec;
+    background: #e4e7ec;
+  }
+  body {
+    background-color: #e4e7ec;
+  }
 }
 
 /* ── Titlebar drag region ──────────────────────────────── */
@@ -1386,12 +1405,24 @@ body.is-web-mode {
 @media (max-width: 768px) {
   html, body {
     height: auto;
+    min-height: 100%;
     min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    background-color: #181920 !important;
+    background: var(--app-bg) fixed !important;
     overflow-x: hidden;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     user-select: auto;
     cursor: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  @media (prefers-color-scheme: light) {
+    html, body {
+      background-color: #e4e7ec !important;
+    }
   }
 
   .titlebar-drag {
@@ -1403,6 +1434,7 @@ body.is-web-mode {
     max-width: 100%;
     height: auto;
     min-height: 100dvh;
+    min-height: -webkit-fill-available;
     padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
     overflow: visible;
     gap: 12px;

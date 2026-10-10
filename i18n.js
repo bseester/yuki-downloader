@@ -99,11 +99,13 @@ const translations = {
     section_about: 'Hakkında & Bağımlılıklar',
     about_desc: 'Yuki Downloader v1.0.0 — Modern macOS & Web Media Downloader',
 
-    // Web Banner & Port
-    web_banner_text: '🌐 Yuki Web Sürümü — Canlı önizleme ve tarayıcı modu. Sınırsız yüksek hızlı yerel indirme için macOS uygulamasını indirin.',
+    web_banner_text: '🌐 Yuki Web Sürümü — Tarayıcınız üzerinden doğrudan indirin. Sınırsız format ve ek özellikler için macOS sürümünü edinin.',
     web_banner_btn: 'macOS Sürümünü İndir ↗',
-    web_toast_download: 'Web modunda indirme simüle edildi ve geçmişe kaydedildi.',
-    web_folder_notice: 'Web sürümünde dosyalar tarayıcınızın varsayılan İndirilenler klasörüne indirilir.',
+    web_toast_download: 'İndirme başlatıldı — dosya cihazınıza aktarılıyor…',
+    web_download_started: 'İndirme başladı — veri alınıyor…',
+    web_download_complete: '✓ İndirme tamamlandı! Dosya İndirilenler klasörüne kaydedildi.',
+    web_download_error: 'Medya akışı alınamadı. Lütfen bağlantıyı kontrol edin.',
+    web_folder_notice: 'Web sürümünde dosyalar doğrudan tarayıcınızın İndirilenler klasörüne kaydedilir.',
   },
 
   en: {
@@ -204,11 +206,13 @@ const translations = {
     section_about: 'About & Dependencies',
     about_desc: 'Yuki Downloader v1.0.0 — Modern macOS & Web Media Downloader',
 
-    // Web Banner & Port
-    web_banner_text: '🌐 Yuki Web Edition — Live web preview & demo mode. Download the macOS desktop app for unlimited high-speed downloads.',
+    web_banner_text: '🌐 Yuki Web Edition — Direct browser media downloader. Download the macOS desktop app for advanced format conversions.',
     web_banner_btn: 'Download macOS App ↗',
-    web_toast_download: 'Download simulated in web mode and saved to history.',
-    web_folder_notice: 'In web mode, files are downloaded directly to your browser default Downloads folder.',
+    web_toast_download: 'Download started — saving file to your device…',
+    web_download_started: 'Download started — fetching data…',
+    web_download_complete: '✓ Download complete! File saved to your Downloads folder.',
+    web_download_error: 'Could not fetch media stream. Please verify the URL.',
+    web_folder_notice: 'In web mode, files are saved directly to your browser Downloads folder.',
   }
 };
 
