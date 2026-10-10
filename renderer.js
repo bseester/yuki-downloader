@@ -5,7 +5,7 @@
 'use strict';
 
 // ─── State ────────────────────────────────────────────────
-let currentFormat    = 'mp4';
+let currentFormat    = 'mp4'; // 'mp4'|'mkv'|'webm'|'mov'|'mp3'|'flac'|'m4a'|'wav'|'opus'
 let currentQuality   = null;
 let currentInfo      = null;
 let currentSaveDir   = null;
@@ -20,7 +20,9 @@ const navDownloaderBtn = document.getElementById('navDownloaderBtn');
 const navSettingsBtn   = document.getElementById('navSettingsBtn');
 const downloaderView   = document.getElementById('downloaderView');
 const settingsView     = document.getElementById('settingsView');
-const formatSwitcher   = document.getElementById('formatSwitcher');
+const modeBtnMp4       = document.getElementById('modeBtnMp4');
+const modeBtnMp3       = document.getElementById('modeBtnMp3');
+const modeBtnSpotify   = document.getElementById('modeBtnSpotify');
 
 // Downloader Elements
 const urlInput          = document.getElementById('urlInput');
@@ -37,17 +39,19 @@ const videoTitle        = document.getElementById('videoTitle');
 const playlistBadge     = document.getElementById('playlistBadge');
 const subtitlesBadge    = document.getElementById('subtitlesBadge');
 const videoChannel      = document.getElementById('videoChannel');
-const qualityChips      = document.getElementById('qualityChips');
-const savePath          = document.getElementById('savePath');
-const downloadBtn       = document.getElementById('downloadBtn');
-const downloadBtnText   = document.getElementById('downloadBtnText');
-const downloadsList     = document.getElementById('downloadsList');
-const emptyState        = document.getElementById('emptyState');
-const errorMsg          = document.getElementById('errorMsg');
-const retryBtn          = document.getElementById('retryBtn');
-const changeFolderBtn   = document.getElementById('changeFolderBtn');
-const openFolderBtn     = document.getElementById('openFolderBtn');
-const clearCompletedBtn = document.getElementById('clearCompletedBtn');
+const formatRow                 = document.getElementById('formatRow');
+const formatChips               = document.getElementById('formatChips');
+const qualityChips              = document.getElementById('qualityChips');
+const savePath                  = document.getElementById('savePath');
+const downloadBtn               = document.getElementById('downloadBtn');
+const downloadBtnText           = document.getElementById('downloadBtnText');
+const downloadsList             = document.getElementById('downloadsList');
+const emptyState                = document.getElementById('emptyState');
+const errorMsg                  = document.getElementById('errorMsg');
+const retryBtn                  = document.getElementById('retryBtn');
+const changeFolderBtn           = document.getElementById('changeFolderBtn');
+const openFolderBtn             = document.getElementById('openFolderBtn');
+const clearCompletedBtn         = document.getElementById('clearCompletedBtn');
 
 // Settings & Preview Lyrics Elements
 const lyricsOptionRow              = document.getElementById('lyricsOptionRow');
@@ -57,11 +61,14 @@ const lyricsChipText               = document.getElementById('lyricsChipText');
 const settingDownloadPath          = document.getElementById('settingDownloadPath');
 const settingChangeFolderBtn       = document.getElementById('settingChangeFolderBtn');
 const settingOpenFolderBtn         = document.getElementById('settingOpenFolderBtn');
+const settingDefaultVideoFormat    = document.getElementById('settingDefaultVideoFormat');
+const settingDefaultAudioFormat    = document.getElementById('settingDefaultAudioFormat');
 const settingDefaultVideoQuality   = document.getElementById('settingDefaultVideoQuality');
 const settingDefaultAudioQuality   = document.getElementById('settingDefaultAudioQuality');
 const settingAutoTurkishSubtitles  = document.getElementById('settingAutoTurkishSubtitles');
 const settingSpotifyPlaylistFolder = document.getElementById('settingSpotifyPlaylistFolder');
 const settingSpotifyFastEngine     = document.getElementById('settingSpotifyFastEngine');
+const settingSpotifySmartSync      = document.getElementById('settingSpotifySmartSync');
 const settingSpotifyDownloadLyrics = document.getElementById('settingSpotifyDownloadLyrics');
 const settingSpotifyLyricsLrc      = document.getElementById('settingSpotifyLyricsLrc');
 const settingSystemNotifications   = document.getElementById('settingSystemNotifications');
@@ -76,7 +83,148 @@ const spotdlBadge                  = document.getElementById('spotdlBadge');
 // ─── Initialization ───────────────────────────────────────
 async function initApp() {
   await loadAndApplySettings();
+  initLanguageAndWebMode();
   loadToolsStatus();
+  await loadAndRestoreHistory();
+}
+
+function initLanguageAndWebMode() {
+  // If running in Web / GitHub Pages mode, show web banner
+  if (window.api?.isWeb) {
+    const webBanner = document.getElementById('webBanner');
+    if (webBanner) webBanner.classList.remove('hidden');
+  }
+
+  // Initialize i18n
+  const savedLang = appSettings.language || (navigator.language?.startsWith('en') ? 'en' : 'tr');
+  if (window.yukiI18n) window.yukiI18n.initI18n(savedLang);
+
+  const langSwitchBtn = document.getElementById('langSwitchBtn');
+  if (langSwitchBtn) {
+    langSwitchBtn.addEventListener('click', () => {
+      const nextLang = window.yukiI18n.currentLang === 'tr' ? 'en' : 'tr';
+      window.yukiI18n.setLanguage(nextLang);
+      updateSetting('language', nextLang);
+      appSettings.language = nextLang;
+      refreshDynamicLabels();
+    });
+  }
+
+  const settingLanguage = document.getElementById('settingLanguage');
+  if (settingLanguage) {
+    settingLanguage.value = savedLang;
+    settingLanguage.addEventListener('change', (e) => {
+      const nextLang = e.target.value;
+      window.yukiI18n.setLanguage(nextLang);
+      updateSetting('language', nextLang);
+      appSettings.language = nextLang;
+      refreshDynamicLabels();
+    });
+  }
+
+  refreshDynamicLabels();
+}
+
+function refreshDynamicLabels() {
+  const t = window.yukiI18n ? window.yukiI18n.t : (k => k);
+  const fmtUp = (currentFormat || 'mp4').toUpperCase();
+
+  if (currentInfo) {
+    if (currentInfo.isPlaylist) {
+      downloadBtnText.textContent = t('btn_download_all_fmt', { fmt: fmtUp });
+    } else {
+      downloadBtnText.textContent = t('btn_download_fmt', { fmt: fmtUp });
+    }
+  } else {
+    if (modeBtnMp4?.classList.contains('active')) {
+      downloadBtnText.textContent = `${t('btn_download_video')} (${fmtUp})`;
+      urlInput.placeholder = t('input_placeholder_yt_video');
+    } else if (modeBtnMp3?.classList.contains('active')) {
+      downloadBtnText.textContent = `${t('btn_download_audio')} (${fmtUp})`;
+      urlInput.placeholder = t('input_placeholder_yt_audio');
+    } else if (modeBtnSpotify?.classList.contains('active')) {
+      downloadBtnText.textContent = `${t('btn_download_spotify')} (${fmtUp})`;
+      urlInput.placeholder = t('input_placeholder_spotify');
+    }
+  }
+}
+
+window.addEventListener('yuki-language-changed', () => {
+  refreshDynamicLabels();
+});
+
+/** Restore completed/error downloads from disk on startup. */
+async function loadAndRestoreHistory() {
+  try {
+    const history = await window.api.getHistory();
+    if (!history || history.length === 0) return;
+
+    history.forEach(entry => {
+      // Don't re-add if already in DOM (shouldn't happen on fresh start)
+      if (document.querySelector(`.dl-item[data-id="${entry.id}"]`)) return;
+      restoreHistoryItem(entry);
+    });
+
+    emptyState.classList.add('hidden');
+  } catch (err) {
+    console.error('History restore error:', err);
+  }
+}
+
+/** Create a frozen (already completed/errored) download item from a history entry. */
+function restoreHistoryItem(entry) {
+  const { id, title, thumbnail, format, quality, source, status, errorMsg: errMsg, isPlaylist, completedAt } = entry;
+
+  const isSpotify  = source === 'spotify';
+  let formatLabel  = (format || 'MP4').toUpperCase();
+  let sourceBadge  = '';
+
+  if (isSpotify) {
+    formatLabel = isPlaylist ? '🎵 Spotify Çalma Listesi' : '🎵 Spotify ' + (format || 'MP3').toUpperCase();
+    sourceBadge = `<span class="src-badge spotify">${isPlaylist ? 'Toplu İndirme' : 'Spotify'}</span>`;
+  }
+
+  const dateStr = completedAt ? new Date(completedAt).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+  const isComplete = status === 'complete';
+
+  const item = document.createElement('div');
+  item.className = 'dl-item';
+  item.dataset.id = id;
+  item.dataset.status = status;
+  item.dataset.history = 'true';
+
+  item.innerHTML = `
+    <div class="dl-header">
+      <img class="dl-thumb" src="${thumbnail || ''}" alt="" />
+      <div class="dl-info">
+        <div class="dl-title">${escHtml(title || 'Bilinmeyen')}${sourceBadge}</div>
+        <div class="dl-meta">
+          <span>${formatLabel} · ${quality || ''}</span>
+          <span class="status-badge ${isComplete ? 'complete' : 'error'}">${isComplete ? '✓ Tamamlandı' : '✗ Hata'}</span>
+        </div>
+      </div>
+      <div class="dl-actions">
+        <button class="dl-action-btn${isComplete ? '' : ' hidden'}" data-action="finder" title="Finder'da göster">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-track">
+        <div class="progress-fill" style="width:100%;background:${isComplete ? 'var(--accent-from, #30d158)' : '#ff453a'}"></div>
+      </div>
+      <div class="progress-stats">
+        <span>${isComplete ? 'Tamamlandı' : (escHtml(errMsg || 'Hata'))}</span>
+        <span style="opacity:.5;font-size:11px">${dateStr}</span>
+      </div>
+    </div>
+  `;
+
+  item.querySelector('[data-action="finder"]')?.addEventListener('click', () => {
+    window.api.showInFinder(null);
+  });
+
+  downloadsList.appendChild(item); // history goes to bottom, new downloads prepend
 }
 
 // ─── View Navigation ──────────────────────────────────────
@@ -94,9 +242,6 @@ function switchView(view) {
     downloaderView.classList.add('active');
     settingsView.classList.add('hidden');
     settingsView.classList.remove('active');
-
-    formatSwitcher.style.opacity = '1';
-    formatSwitcher.style.pointerEvents = 'auto';
   } else {
     navSettingsBtn.classList.add('active');
     navSettingsBtn.setAttribute('aria-selected', 'true');
@@ -107,60 +252,57 @@ function switchView(view) {
     settingsView.classList.add('active');
     downloaderView.classList.add('hidden');
     downloaderView.classList.remove('active');
-
-    formatSwitcher.style.opacity = '0.4';
-    formatSwitcher.style.pointerEvents = 'none';
   }
 }
 
-// ─── Format Tabs Handling ─────────────────────────────────
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    if (tab.classList.contains('disabled')) return;
+// ─── Mode Squircles Handling (MP4 / MP3 / Spotify) ────────
+const VIDEO_FORMATS = ['mp4', 'mkv', 'webm', 'mov'];
+const AUDIO_FORMATS = ['mp3', 'flac', 'm4a', 'wav', 'opus'];
 
-    document.querySelectorAll('.tab').forEach(t => {
-      t.classList.remove('active');
-      t.setAttribute('aria-selected', 'false');
-    });
-    tab.classList.add('active');
-    tab.setAttribute('aria-selected', 'true');
-    currentFormat = tab.dataset.format;
-    currentQuality = null;
-    if (currentInfo) renderQualities(currentInfo.formats);
-  });
+function setMode(mode) {
+  const t = window.yukiI18n ? window.yukiI18n.t : (k => k);
+  // mode: 'mp4' | 'mp3' | 'spotify'
+  [modeBtnMp4, modeBtnMp3, modeBtnSpotify].forEach(btn => btn?.classList.remove('active'));
+
+  if (mode === 'mp4') {
+    modeBtnMp4?.classList.add('active');
+    // Keep current video format or fall back to settings/default
+    if (!VIDEO_FORMATS.includes(currentFormat)) {
+      currentFormat = appSettings.defaultVideoFormat || 'mp4';
+    }
+    currentSource = 'youtube';
+    urlInput.placeholder = t('input_placeholder_yt_video');
+    if (!currentInfo) downloadBtnText.textContent = `${t('btn_download_video')} (${currentFormat.toUpperCase()})`;
+  } else if (mode === 'mp3') {
+    modeBtnMp3?.classList.add('active');
+    // Keep current audio format or fall back to settings/default
+    if (!AUDIO_FORMATS.includes(currentFormat)) {
+      currentFormat = appSettings.defaultAudioFormat || 'mp3';
+    }
+    currentSource = 'youtube';
+    urlInput.placeholder = t('input_placeholder_yt_audio');
+    if (!currentInfo) downloadBtnText.textContent = `${t('btn_download_audio')} (${currentFormat.toUpperCase()})`;
+  } else if (mode === 'spotify') {
+    modeBtnSpotify?.classList.add('active');
+    if (!AUDIO_FORMATS.includes(currentFormat)) {
+      currentFormat = appSettings.defaultAudioFormat || 'mp3';
+    }
+    currentSource = 'spotify';
+    urlInput.placeholder = t('input_placeholder_spotify');
+    if (!currentInfo) downloadBtnText.textContent = `${t('btn_download_spotify')} (${currentFormat.toUpperCase()})`;
+  }
+
+  currentQuality = null;
+  if (currentInfo) renderQualities(currentInfo.formats);
+  else renderFormatChipsOnly(mode); // show format chips even without a loaded video
+}
+
+modeBtnMp4?.addEventListener('click', () => setMode('mp4'));
+modeBtnMp3?.addEventListener('click', () => setMode('mp3'));
+modeBtnSpotify?.addEventListener('click', () => {
+  setMode('spotify');
+  urlInput.focus();
 });
-
-function setSpotifyFormatTabs() {
-  currentFormat = 'mp3';
-  document.querySelectorAll('.tab').forEach(t => {
-    if (t.dataset.format === 'mp4') {
-      t.classList.remove('active');
-      t.classList.add('disabled');
-      t.setAttribute('aria-selected', 'false');
-      t.title = 'Spotify bağlantıları için sadece MP3 ses desteklenir';
-    }
-    if (t.dataset.format === 'mp3') {
-      t.classList.add('active');
-      t.classList.remove('disabled');
-      t.setAttribute('aria-selected', 'true');
-      t.title = 'MP3 Ses';
-    }
-  });
-}
-
-function resetFormatTabs() {
-  document.querySelectorAll('.tab').forEach(t => {
-    t.classList.remove('disabled');
-    t.removeAttribute('title');
-    if (t.dataset.format === currentFormat) {
-      t.classList.add('active');
-      t.setAttribute('aria-selected', 'true');
-    } else {
-      t.classList.remove('active');
-      t.setAttribute('aria-selected', 'false');
-    }
-  });
-}
 
 // ─── URL Input Handling ───────────────────────────────────
 urlInput.addEventListener('input', () => {
@@ -217,33 +359,67 @@ retryBtn.addEventListener('click', () => {
 
 // ─── Clear Completed ──────────────────────────────────────
 clearCompletedBtn.addEventListener('click', () => {
-  document.querySelectorAll('.dl-item[data-status="complete"], .dl-item[data-status="error"]').forEach(el => {
-    removeDownloadItem(el.dataset.id);
+  const completed = document.querySelectorAll('.dl-item[data-status="complete"], .dl-item[data-status="error"]');
+  completed.forEach(el => {
+    window.api.removeHistoryEntry(el.dataset.id).catch(() => {});
+    removeDownloadItemEl(el);
   });
 });
 
-// ─── Download Button ──────────────────────────────────────
-downloadBtn.addEventListener('click', () => {
-  if (!currentInfo || !currentQuality) return;
+/** Remove element directly (already handled history removal above). */
+function removeDownloadItemEl(el) {
+  if (!el) return;
+  el.classList.add('removing');
+  setTimeout(() => {
+    el.remove();
+    downloads.delete(el.dataset.id);
+    if (!downloadsList.querySelector('.dl-item')) emptyState.classList.remove('hidden');
+  }, 280);
+}
 
+// ─── Download Button ──────────────────────────────────────
+downloadBtn.addEventListener('click', async () => {
+  const url = urlInput.value.trim();
+  if (!url) {
+    urlInput.focus();
+    return;
+  }
+
+  if (!currentInfo) {
+    downloadBtn.disabled = true;
+    const t = window.yukiI18n ? window.yukiI18n.t : (k => k);
+    downloadBtnText.textContent = t('btn_checking');
+    try {
+      await fetchInfo(url);
+    } catch {}
+    downloadBtn.disabled = false;
+    if (!currentInfo) {
+      downloadBtnText.textContent = t('btn_start_download');
+      return;
+    }
+  }
+
+  const isVideo = isVideoFormat(currentFormat);
+  const defaultQuality = isVideo ? (appSettings.defaultVideoQuality || '1080p') : (appSettings.defaultAudioQuality || '320k');
+  const quality = currentQuality || (isLosslessFormat(currentFormat) ? 'lossless' : defaultQuality);
   const id = `dl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
   downloads.set(id, {
     title:      currentInfo.title,
     thumb:      currentInfo.thumbnail,
     format:     currentFormat,
-    quality:    currentQuality,
+    quality,
     source:     currentSource,
     isPlaylist: Boolean(currentInfo.isPlaylist),
   });
 
-  addDownloadItem(id, currentInfo, currentFormat, currentQuality, currentSource);
+  addDownloadItem(id, currentInfo, currentFormat, quality, currentSource);
 
   window.api.startDownload({
     id,
-    url:                  urlInput.value.trim(),
+    url,
     format:               currentFormat,
-    quality:              currentQuality,
+    quality,
     outputDir:            currentSaveDir,
     source:               currentSource,
     isPlaylist:           Boolean(currentInfo.isPlaylist),
@@ -251,6 +427,13 @@ downloadBtn.addEventListener('click', () => {
     downloadLyrics:       appSettings.spotifyDownloadLyrics === true,
     lyricsLrc:            appSettings.spotifyLyricsLrc === true,
   });
+
+  // Reset input after launching download
+  urlInput.value = '';
+  clearBtn.classList.add('hidden');
+  hidePreview();
+  currentInfo = null;
+  downloadBtnText.textContent = 'İndirmeyi Başlat';
 });
 
 // ─── IPC Events from Main Process ────────────────────────
@@ -293,7 +476,24 @@ window.api.onComplete(({ id }) => {
   if (finderBtn) finderBtn.classList.remove('hidden');
 
   const statsWrap = item.querySelector('.progress-stats');
-  if (statsWrap) statsWrap.innerHTML = '<span>Tamamlandı</span>';
+  const dateStr = new Date().toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' });
+  if (statsWrap) statsWrap.innerHTML = `<span>Tamamlandı</span><span style="opacity:.5;font-size:11px">${dateStr}</span>`;
+
+  // Persist to disk
+  const meta = downloads.get(id);
+  if (meta) {
+    window.api.saveHistoryEntry({
+      id,
+      title:       meta.title,
+      thumbnail:   meta.thumb,
+      format:      meta.format,
+      quality:     meta.quality,
+      source:      meta.source,
+      isPlaylist:  meta.isPlaylist,
+      status:      'complete',
+      completedAt: new Date().toISOString(),
+    }).catch(() => {});
+  }
 });
 
 window.api.onError(({ id, message }) => {
@@ -316,6 +516,23 @@ window.api.onError(({ id, message }) => {
   const stats = item.querySelector('.progress-stats');
   if (stats) {
     stats.children[0].textContent = message?.slice(0, 60) || 'Bilinmeyen hata';
+  }
+
+  // Persist error to disk
+  const meta = downloads.get(id);
+  if (meta) {
+    window.api.saveHistoryEntry({
+      id,
+      title:       meta.title,
+      thumbnail:   meta.thumb,
+      format:      meta.format,
+      quality:     meta.quality,
+      source:      meta.source,
+      isPlaylist:  meta.isPlaylist,
+      status:      'error',
+      errorMsg:    message?.slice(0, 120) || 'Bilinmeyen hata',
+      completedAt: new Date().toISOString(),
+    }).catch(() => {});
   }
 });
 
@@ -362,12 +579,13 @@ function showPreview(info) {
   currentSource = info.source || 'youtube';
 
   // Check if Spotify playlist or album
+  const fmtUp = (currentFormat || 'mp4').toUpperCase();
   if (info.isPlaylist) {
     playlistBadge.classList.remove('hidden');
-    downloadBtnText.textContent = 'Tümünü İndir (Toplu Çalma Listesi)';
+    downloadBtnText.textContent = `Tümünü İndir (${fmtUp} - Toplu Liste)`;
   } else {
     playlistBadge.classList.add('hidden');
-    downloadBtnText.textContent = currentSource === 'spotify' ? 'İndir (MP3)' : 'İndir';
+    downloadBtnText.textContent = `İndir (${fmtUp})`;
   }
 
   // Subtitle badge for YouTube MP4
@@ -385,11 +603,11 @@ function showPreview(info) {
     lyricsOptionRow?.classList.add('hidden');
   }
 
-  // Tab switcher state
+  // Mode squircle state
   if (currentSource === 'spotify') {
-    setSpotifyFormatTabs();
+    setMode('spotify');
   } else {
-    resetFormatTabs();
+    setMode(isAudioFormat(currentFormat) ? 'mp3' : 'mp4');
   }
 
   renderQualities(info.formats);
@@ -398,14 +616,145 @@ function showPreview(info) {
   previewContent.classList.remove('hidden');
 }
 
-function renderQualities(formats) {
-  qualityChips.innerHTML = '';
-  const options = currentFormat === 'mp3' ? formats.audio : formats.video;
+// ─── Format & Quality Chip Rendering ─────────────────────
+function isVideoFormat(fmt) { return VIDEO_FORMATS.includes(fmt); }
+function isAudioFormat(fmt) { return AUDIO_FORMATS.includes(fmt); }
+function isLosslessFormat(fmt) { return ['flac', 'wav'].includes(fmt); }
 
-  // Check user default quality preference
-  const defaultPref = currentFormat === 'mp3'
-    ? (appSettings.defaultAudioQuality || '320k')
-    : (appSettings.defaultVideoQuality || '1080p');
+/** Render only format chips (called when no video is loaded yet). */
+function renderFormatChipsOnly(mode) {
+  if (!formatRow || !formatChips) return;
+  const isVideo = mode === 'mp4';
+  const fmtList = isVideo ? VIDEO_FORMATS : AUDIO_FORMATS;
+  formatRow.classList.remove('hidden');
+  formatChips.innerHTML = '';
+  fmtList.forEach(fmt => {
+    const chip = document.createElement('button');
+    chip.className = 'quality-chip' + (fmt === currentFormat ? ' selected' : '');
+    chip.textContent = fmt.toUpperCase();
+    chip.setAttribute('role', 'radio');
+    chip.setAttribute('aria-checked', String(fmt === currentFormat));
+    chip.addEventListener('click', () => {
+      currentFormat = fmt;
+      formatChips.querySelectorAll('.quality-chip').forEach(c => {
+        c.classList.remove('selected'); c.setAttribute('aria-checked', 'false');
+      });
+      chip.classList.add('selected'); chip.setAttribute('aria-checked', 'true');
+      // Refresh quality chips if we have info
+      if (currentInfo) renderQualityChips(currentInfo.formats);
+      else renderQualityChipsFromFormat(fmt);
+    });
+    formatChips.appendChild(chip);
+  });
+  renderQualityChipsFromFormat(currentFormat);
+}
+
+/** Render quality chips based on format only (no video info). */
+function renderQualityChipsFromFormat(fmt) {
+  qualityChips.innerHTML = '';
+  currentQuality = null;
+  if (isLosslessFormat(fmt)) {
+    const chip = document.createElement('button');
+    chip.className = 'quality-chip selected';
+    chip.textContent = 'Kayıpsız (Lossless)';
+    chip.setAttribute('role', 'radio'); chip.setAttribute('aria-checked', 'true');
+    currentQuality = 'lossless';
+    qualityChips.appendChild(chip);
+  } else if (isVideoFormat(fmt)) {
+    const qualities = ['4K', '1080p', '720p', '480p'];
+    const pref = appSettings.defaultVideoQuality || '1080p';
+    let defIdx = qualities.indexOf(pref); if (defIdx === -1) defIdx = 1;
+    qualities.forEach((q, i) => {
+      const chip = document.createElement('button');
+      chip.className = 'quality-chip' + (i === defIdx ? ' selected' : '');
+      chip.textContent = q;
+      chip.setAttribute('role', 'radio'); chip.setAttribute('aria-checked', String(i === defIdx));
+      if (i === defIdx) currentQuality = q;
+      chip.addEventListener('click', () => {
+        qualityChips.querySelectorAll('.quality-chip').forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-checked', 'false'); });
+        chip.classList.add('selected'); chip.setAttribute('aria-checked', 'true'); currentQuality = q;
+      });
+      qualityChips.appendChild(chip);
+    });
+  } else {
+    // Lossy audio: mp3, m4a, opus
+    const bitrates = ['320k', '256k', '192k', '128k'];
+    const pref = appSettings.defaultAudioQuality || '320k';
+    let defIdx = bitrates.indexOf(pref); if (defIdx === -1) defIdx = 0;
+    bitrates.forEach((q, i) => {
+      const chip = document.createElement('button');
+      chip.className = 'quality-chip' + (i === defIdx ? ' selected' : '');
+      chip.textContent = q;
+      chip.setAttribute('role', 'radio'); chip.setAttribute('aria-checked', String(i === defIdx));
+      if (i === defIdx) currentQuality = q;
+      chip.addEventListener('click', () => {
+        qualityChips.querySelectorAll('.quality-chip').forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-checked', 'false'); });
+        chip.classList.add('selected'); chip.setAttribute('aria-checked', 'true'); currentQuality = q;
+      });
+      qualityChips.appendChild(chip);
+    });
+  }
+}
+
+/** Full render: format chips + quality chips (with video info). */
+function renderQualities(formats) {
+  if (!formatRow || !formatChips) return;
+
+  // Determine format list by current mode
+  const isVideo = isVideoFormat(currentFormat) || (currentSource === 'youtube' && modeBtnMp4?.classList.contains('active'));
+  const fmtList  = isVideo ? (formats.videoFormats || VIDEO_FORMATS) : (formats.audioFormats || AUDIO_FORMATS);
+
+  formatRow.classList.remove('hidden');
+  formatChips.innerHTML = '';
+
+  // Ensure currentFormat is in the list
+  if (!fmtList.includes(currentFormat)) currentFormat = fmtList[0];
+
+  fmtList.forEach(fmt => {
+    const chip = document.createElement('button');
+    chip.className = 'quality-chip' + (fmt === currentFormat ? ' selected' : '');
+    chip.textContent = fmt.toUpperCase();
+    chip.setAttribute('role', 'radio');
+    chip.setAttribute('aria-checked', String(fmt === currentFormat));
+    chip.addEventListener('click', () => {
+      currentFormat = fmt;
+      formatChips.querySelectorAll('.quality-chip').forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-checked', 'false'); });
+      chip.classList.add('selected'); chip.setAttribute('aria-checked', 'true');
+      renderQualityChips(formats);
+      if (currentInfo) {
+        const fmtUp = fmt.toUpperCase();
+        if (currentInfo.isPlaylist) {
+          downloadBtnText.textContent = `Tümünü İndir (${fmtUp} - Toplu Liste)`;
+        } else {
+          downloadBtnText.textContent = `İndir (${fmtUp})`;
+        }
+      }
+    });
+    formatChips.appendChild(chip);
+  });
+
+  renderQualityChips(formats);
+}
+
+/** Render quality chips based on current format and the video/audio format info. */
+function renderQualityChips(formats) {
+  qualityChips.innerHTML = '';
+  currentQuality = null;
+
+  if (isLosslessFormat(currentFormat)) {
+    const chip = document.createElement('button');
+    chip.className = 'quality-chip selected';
+    chip.textContent = 'Kayıpsız (Lossless)';
+    chip.setAttribute('role', 'radio'); chip.setAttribute('aria-checked', 'true');
+    currentQuality = 'lossless';
+    qualityChips.appendChild(chip);
+    return;
+  }
+
+  const options = isVideoFormat(currentFormat) ? (formats.video || []) : (formats.audio || []);
+  const defaultPref = isVideoFormat(currentFormat)
+    ? (appSettings.defaultVideoQuality || '1080p')
+    : (appSettings.defaultAudioQuality || '320k');
 
   let defaultIdx = options.indexOf(defaultPref);
   if (defaultIdx === -1) defaultIdx = 0;
@@ -418,17 +767,10 @@ function renderQualities(formats) {
     chip.setAttribute('role', 'radio');
     chip.setAttribute('aria-checked', String(isSelected));
     if (isSelected) currentQuality = q;
-
     chip.addEventListener('click', () => {
-      qualityChips.querySelectorAll('.quality-chip').forEach(c => {
-        c.classList.remove('selected');
-        c.setAttribute('aria-checked', 'false');
-      });
-      chip.classList.add('selected');
-      chip.setAttribute('aria-checked', 'true');
-      currentQuality = q;
+      qualityChips.querySelectorAll('.quality-chip').forEach(c => { c.classList.remove('selected'); c.setAttribute('aria-checked', 'false'); });
+      chip.classList.add('selected'); chip.setAttribute('aria-checked', 'true'); currentQuality = q;
     });
-
     qualityChips.appendChild(chip);
   });
 }
@@ -461,12 +803,15 @@ function addDownloadItem(id, info, format, quality, source) {
 
   if (isSpotify) {
     if (isPlaylist) {
-      formatLabel = '🎵 Spotify Çalma Listesi';
+      formatLabel = `🎵 Spotify ${format.toUpperCase()} (Liste)`;
       sourceBadge = '<span class="src-badge spotify">Toplu İndirme</span>';
     } else {
-      formatLabel = '🎵 Spotify MP3';
+      formatLabel = `🎵 Spotify ${format.toUpperCase()}`;
       sourceBadge = '<span class="src-badge spotify">Spotify</span>';
     }
+  } else if (isPlaylist) {
+    formatLabel = `${format.toUpperCase()} (Çalma Listesi)`;
+    sourceBadge = '<span class="src-badge spotify">Toplu İndirme</span>';
   } else if (format === 'mp4' && appSettings.autoTurkishSubtitles !== false) {
     sourceBadge = '<span class="src-badge" style="background:rgba(255,107,107,0.18);color:#ff6b6b;border:1px solid rgba(255,107,107,0.3)">TR Altyazı</span>';
   }
@@ -516,6 +861,13 @@ function addDownloadItem(id, info, format, quality, source) {
 function removeDownloadItem(id) {
   const el = document.querySelector(`.dl-item[data-id="${id}"]`);
   if (!el) return;
+
+  const status = el.dataset.status;
+  // If removing a completed/errored item, also remove from persistent history
+  if (status === 'complete' || status === 'error') {
+    window.api.removeHistoryEntry(id).catch(() => {});
+  }
+
   el.classList.add('removing');
   setTimeout(() => {
     el.remove();
@@ -535,8 +887,17 @@ async function loadAndApplySettings() {
     settingDownloadPath.textContent = appSettings.downloadDir || '~/Downloads';
     savePath.textContent = appSettings.downloadDir || '~/Downloads';
 
+    if (settingDefaultVideoFormat) settingDefaultVideoFormat.value = appSettings.defaultVideoFormat || 'mp4';
+    if (settingDefaultAudioFormat) settingDefaultAudioFormat.value = appSettings.defaultAudioFormat || 'mp3';
     settingDefaultVideoQuality.value = appSettings.defaultVideoQuality || '1080p';
     settingDefaultAudioQuality.value = appSettings.defaultAudioQuality || '320k';
+
+    // Apply default format to currentFormat based on current mode
+    if (isVideoFormat(currentFormat) || currentFormat === 'mp4') {
+      currentFormat = appSettings.defaultVideoFormat || 'mp4';
+    } else {
+      currentFormat = appSettings.defaultAudioFormat || 'mp3';
+    }
 
     if (settingAutoTurkishSubtitles) {
       settingAutoTurkishSubtitles.checked = appSettings.autoTurkishSubtitles !== false;
@@ -544,6 +905,9 @@ async function loadAndApplySettings() {
 
     settingSpotifyPlaylistFolder.checked = appSettings.spotifyPlaylistFolder !== false;
     settingSpotifyFastEngine.checked     = appSettings.spotifyFastEngine !== false;
+    if (settingSpotifySmartSync) {
+      settingSpotifySmartSync.checked = appSettings.spotifySmartSync !== false;
+    }
     if (settingSpotifyDownloadLyrics) {
       settingSpotifyDownloadLyrics.checked = appSettings.spotifyDownloadLyrics === true;
     }
@@ -597,6 +961,32 @@ settingChangeFolderBtn.addEventListener('click', async () => {
 
 settingOpenFolderBtn.addEventListener('click', () => window.api.openDownloads());
 
+if (settingDefaultVideoFormat) {
+  settingDefaultVideoFormat.addEventListener('change', (e) => {
+    updateSetting('defaultVideoFormat', e.target.value);
+    appSettings.defaultVideoFormat = e.target.value;
+    // If currently in video mode, update currentFormat & re-render chips
+    if (isVideoFormat(currentFormat) || modeBtnMp4?.classList.contains('active')) {
+      currentFormat = e.target.value;
+      if (currentInfo) renderQualities(currentInfo.formats);
+      else renderFormatChipsOnly('mp4');
+    }
+  });
+}
+
+if (settingDefaultAudioFormat) {
+  settingDefaultAudioFormat.addEventListener('change', (e) => {
+    updateSetting('defaultAudioFormat', e.target.value);
+    appSettings.defaultAudioFormat = e.target.value;
+    // If currently in audio/spotify mode, update currentFormat & re-render chips
+    if (AUDIO_FORMATS.includes(currentFormat) || modeBtnMp3?.classList.contains('active') || modeBtnSpotify?.classList.contains('active')) {
+      currentFormat = e.target.value;
+      if (currentInfo) renderQualities(currentInfo.formats);
+      else renderFormatChipsOnly('mp3');
+    }
+  });
+}
+
 settingDefaultVideoQuality.addEventListener('change', (e) => {
   updateSetting('defaultVideoQuality', e.target.value);
 });
@@ -621,6 +1011,12 @@ settingSpotifyPlaylistFolder.addEventListener('change', (e) => {
 settingSpotifyFastEngine.addEventListener('change', (e) => {
   updateSetting('spotifyFastEngine', e.target.checked);
 });
+
+if (settingSpotifySmartSync) {
+  settingSpotifySmartSync.addEventListener('change', (e) => {
+    updateSetting('spotifySmartSync', e.target.checked);
+  });
+}
 
 if (settingSpotifyDownloadLyrics) {
   settingSpotifyDownloadLyrics.addEventListener('change', (e) => {
@@ -702,7 +1098,6 @@ function isSpotifyUrl(s) {
 function updateSourceBadge(val) {
   if (!val) {
     urlSourceBadge?.classList.add('hidden');
-    resetFormatTabs();
     return;
   }
   if (isSpotifyUrl(val)) {
@@ -711,10 +1106,12 @@ function updateSourceBadge(val) {
       urlSourceBadge.textContent = isPlaylist ? '🎵 Spotify Çalma Listesi' : '🎵 Spotify';
       urlSourceBadge.classList.remove('hidden');
     }
-    setSpotifyFormatTabs();
+    setMode('spotify');
   } else {
     urlSourceBadge?.classList.add('hidden');
-    resetFormatTabs();
+    if (modeBtnSpotify?.classList.contains('active')) {
+      setMode(isAudioFormat(currentFormat) ? 'mp3' : 'mp4');
+    }
   }
 }
 

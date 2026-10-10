@@ -9,9 +9,49 @@ const https = require('https');
 const DOWNLOADS_DIR = path.join(os.homedir(), 'Downloads');
 const ICON_PATH = path.join(__dirname, 'assets', 'icon.png');
 const SETTINGS_FILE = path.join(app.getPath('userData'), 'yuki_settings.json');
+const HISTORY_FILE  = path.join(app.getPath('userData'), 'yuki_history.json');
+
+const MAX_HISTORY = 100;
+
+function loadHistory() {
+  try {
+    if (fs.existsSync(HISTORY_FILE)) {
+      return JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8'));
+    }
+  } catch (e) { console.error('History load error:', e); }
+  return [];
+}
+
+function saveHistoryEntry(entry) {
+  try {
+    const list = loadHistory();
+    // Remove duplicate (same id) if somehow present
+    const deduped = list.filter(e => e.id !== entry.id);
+    deduped.unshift(entry); // newest first
+    const trimmed = deduped.slice(0, MAX_HISTORY);
+    fs.writeFileSync(HISTORY_FILE, JSON.stringify(trimmed, null, 2), 'utf8');
+    return trimmed;
+  } catch (e) { console.error('History save error:', e); return []; }
+}
+
+function removeHistoryEntry(id) {
+  try {
+    const list = loadHistory().filter(e => e.id !== id);
+    fs.writeFileSync(HISTORY_FILE, JSON.stringify(list, null, 2), 'utf8');
+    return list;
+  } catch (e) { console.error('History remove error:', e); return []; }
+}
+
+function clearHistory() {
+  try {
+    fs.writeFileSync(HISTORY_FILE, '[]', 'utf8');
+  } catch (e) { console.error('History clear error:', e); }
+}
 
 const DEFAULT_SETTINGS = {
   downloadDir: DOWNLOADS_DIR,
+  defaultVideoFormat: 'mp4',
+  defaultAudioFormat: 'mp3',
   defaultVideoQuality: '1080p',
   defaultAudioQuality: '320k',
   autoTurkishSubtitles: true,
@@ -19,8 +59,10 @@ const DEFAULT_SETTINGS = {
   spotifyDownloadLyrics: false,
   spotifyLyricsLrc: false,
   spotifyFastEngine: true,
+  spotifySmartSync: true,
   systemNotifications: true,
   soundAlert: true,
+  language: 'tr',
 };
 
 function loadSettings() {
@@ -183,6 +225,12 @@ ipcMain.handle('save-settings', (_evt, newSettings) => {
   return saveSettingsToDisk(newSettings);
 });
 
+// Download History
+ipcMain.handle('get-history', () => loadHistory());
+ipcMain.handle('save-history-entry', (_evt, entry) => saveHistoryEntry(entry));
+ipcMain.handle('remove-history-entry', (_evt, id) => removeHistoryEntry(id));
+ipcMain.on('clear-history', () => clearHistory());
+
 // Tools Status
 ipcMain.handle('get-tools-status', () => {
   const ytdlpExists = fs.existsSync(YTDLP_BIN);
@@ -216,7 +264,10 @@ ipcMain.handle('fetch-info', async (_evt, url) => {
 
 function fetchYtdlpInfo(url) {
   return new Promise((resolve, reject) => {
-    const args = ['--dump-json', '--no-playlist', url];
+    const isPlaylist = url.includes('list=');
+    const args = isPlaylist
+      ? ['--dump-single-json', '--flat-playlist', '--playlist-items', '1', url]
+      : ['--dump-json', '--no-playlist', url];
     const proc = spawn(YTDLP_BIN, args, {
       env: { ...process.env, PATH: process.env.PATH + ':/opt/homebrew/bin:/usr/local/bin' }
     });
@@ -232,12 +283,12 @@ function fetchYtdlpInfo(url) {
         const info = JSON.parse(raw);
         resolve({
           title: info.title,
-          channel: info.uploader || info.channel || '',
-          duration: info.duration_string || formatDuration(info.duration),
-          thumbnail: info.thumbnail,
+          channel: info.uploader || info.channel || (isPlaylist ? 'YouTube Çalma Listesi' : ''),
+          duration: isPlaylist ? 'Toplu Çalma Listesi' : (info.duration_string || formatDuration(info.duration)),
+          thumbnail: (info.thumbnails && info.thumbnails.length) ? info.thumbnails[info.thumbnails.length - 1].url : (info.thumbnail || ''),
           formats: parseFormats(info.formats || []),
           source: 'youtube',
-          isPlaylist: false,
+          isPlaylist: Boolean(isPlaylist),
         });
       } catch {
         reject(new Error('JSON parse error'));
@@ -287,7 +338,12 @@ function fetchSpotifyInfo(url) {
             channel:   artist,
             duration:  durationLabel,
             thumbnail: data.thumbnail_url || '',
-            formats:   { video: [], audio: ['320k', '192k', '128k'] },
+            formats:   {
+              video: [],
+              audio: ['320k', '256k', '192k', '128k'],
+              videoFormats: [],
+              audioFormats: ['mp3', 'flac', 'm4a', 'wav', 'opus', 'ogg']
+            },
             source:    'spotify',
             spotifyType,
             isPlaylist: isPlaylist || isAlbum || isArtist,
@@ -305,26 +361,60 @@ function fetchSpotifyInfo(url) {
 // Start download — routes to yt-dlp or spotdl
 ipcMain.on('start-download', (evt, { id, url, format, quality, outputDir, source, isPlaylist, autoTurkishSubtitles, downloadLyrics, lyricsLrc }) => {
   if (source === 'spotify' || isSpotifyUrl(url)) {
-    startSpotifyDownload(evt, { id, url, quality, outputDir, isPlaylist, downloadLyrics, lyricsLrc });
+    startSpotifyDownload(evt, { id, url, format, quality, outputDir, isPlaylist, downloadLyrics, lyricsLrc });
   } else {
-    startYtdlpDownload(evt, { id, url, format, quality, outputDir, autoTurkishSubtitles });
+    startYtdlpDownload(evt, { id, url, format, quality, outputDir, isPlaylist, autoTurkishSubtitles });
   }
 });
 
-function startYtdlpDownload(evt, { id, url, format, quality, outputDir, autoTurkishSubtitles }) {
+function startYtdlpDownload(evt, { id, url, format, quality, outputDir, isPlaylist, autoTurkishSubtitles }) {
   const settings = loadSettings();
   const dir = outputDir || settings.downloadDir || DOWNLOADS_DIR;
   const useAutoSubs = autoTurkishSubtitles !== undefined ? autoTurkishSubtitles : (settings.autoTurkishSubtitles !== false);
-  const args = buildArgs(url, format, quality, dir, useAutoSubs);
+  const args = buildArgs(url, format, quality, dir, useAutoSubs, isPlaylist);
   const proc = spawn(YTDLP_BIN, args, { env: { ...process.env, PATH: process.env.PATH + ':/opt/homebrew/bin:/usr/local/bin' } });
   activeProcesses.set(id, proc);
 
+  let playlistCurrent = 0;
+  let playlistTotal = 0;
+
   proc.stdout.on('data', data => {
     const line = data.toString();
+
+    // Playlist item indicator (e.g. "[download] Downloading item 3 of 42")
+    const mItem = line.match(/\[download\]\s+Downloading\s+(?:item|video)\s+(\d+)\s+of\s+(\d+)/i);
+    if (mItem) {
+      playlistCurrent = parseInt(mItem[1], 10);
+      playlistTotal = parseInt(mItem[2], 10);
+      const pct = Math.round((playlistCurrent / playlistTotal) * 100);
+      evt.sender.send('download-progress', { id, percent: pct, speed: `[${playlistCurrent}/${playlistTotal}] İndiriliyor…`, eta: '' });
+    }
+
+    // Existing file skipped (smart sync: checks disk before downloading)
+    if (line.includes('has already been downloaded')) {
+      const mName = line.match(/\[download\]\s+(.+?)\s+has already been downloaded/);
+      const name = mName ? path.basename(mName[1]) : 'Dosya';
+      const pct = playlistTotal > 0 ? Math.round((playlistCurrent / playlistTotal) * 100) : 100;
+      const speedText = playlistTotal > 0
+        ? `[${playlistCurrent}/${playlistTotal}] Atlandı (Mevcut): ${name}`
+        : `Atlandı (Mevcut): ${name}`;
+      evt.sender.send('download-progress', { id, percent: pct, speed: speedText, eta: '' });
+    }
+
+    // Percentage progress
     const m = line.match(/\[download\]\s+([\d.]+)%.*?at\s+([\d.]+\s*\S+\/s).*?ETA\s+([\d:]+)/);
-    if (m) evt.sender.send('download-progress', { id, percent: parseFloat(m[1]), speed: m[2], eta: m[3] });
-    if (line.includes('[download] 100%') || line.includes('has already been downloaded'))
+    if (m) {
+      let pct = parseFloat(m[1]);
+      let speedText = m[2];
+      if (playlistTotal > 0) {
+        pct = Math.min(99, Math.round(((Math.max(0, playlistCurrent - 1) + (pct / 100)) / playlistTotal) * 100));
+        speedText = `[${playlistCurrent}/${playlistTotal}] ${m[2]}`;
+      }
+      evt.sender.send('download-progress', { id, percent: pct, speed: speedText, eta: m[3] });
+    }
+    if (line.includes('[download] 100%') && playlistTotal === 0) {
       evt.sender.send('download-progress', { id, percent: 100, speed: '', eta: '' });
+    }
   });
 
   proc.stderr.on('data', data => {
@@ -344,9 +434,10 @@ function startYtdlpDownload(evt, { id, url, format, quality, outputDir, autoTurk
   });
 }
 
-function startSpotifyDownload(evt, { id, url, quality, outputDir, isPlaylist, downloadLyrics, lyricsLrc }) {
+function startSpotifyDownload(evt, { id, url, format, quality, outputDir, isPlaylist, downloadLyrics, lyricsLrc }) {
   const settings = loadSettings();
   const dir = outputDir || settings.downloadDir || DOWNLOADS_DIR;
+  const audioFormat = (format || settings.defaultAudioFormat || 'mp3').toLowerCase();
   const bitrate = quality || settings.defaultAudioQuality || '320k';
   const isBatch = isPlaylist || url.includes('/playlist/') || url.includes('/album/') || url.includes('/artist/');
 
@@ -367,16 +458,30 @@ function startSpotifyDownload(evt, { id, url, quality, outputDir, isPlaylist, do
   const args = [
     url,
     '--output', outputTemplate,
-    '--bitrate', bitrate,
   ];
 
+  // Only pass bitrate for lossy formats (mp3, m4a, opus)
+  if (!['flac', 'wav'].includes(audioFormat)) {
+    args.push('--bitrate', bitrate);
+  }
+
+  // Smart Sync for playlists/batches: check if files are on disk, skip existing, only download new; redownload if deleted
+  // scan-for-songs checks the output dir for existing files matching the output format; missing = redownload, present = skip
+  if (settings.spotifySmartSync !== false) {
+    args.push('--overwrite', 'skip');
+    if (isBatch) {
+      args.push('--scan-for-songs');
+    }
+  }
+
   // Disable lyrics providers if lyrics download is turned off
+  // Passing --lyrics with zero providers makes spotdl use an empty lyrics_providers list
   if (!shouldDownloadLyrics) {
-    args.push('--lyrics');
+    args.push('--lyrics'); // no provider args → empty list → no lyrics fetched
   }
 
   args.push(
-    '--format', 'mp3',
+    '--format', audioFormat,
     '--ffmpeg', FFMPEG_BIN,
     '--simple-tui'
   );
@@ -470,6 +575,24 @@ function startSpotifyDownload(evt, { id, url, quality, outputDir, isPlaylist, do
         }
       }
 
+      // Skipped existing song (smart playlist sync)
+      const mSkip = line.match(/Skipping\s+["']?([^"']+)["']?\s+as it already exists/i) || line.match(/Skipped:\s*(.+)/i);
+      if (mSkip) {
+        const skippedSong = mSkip[1];
+        downloadedCount++;
+        const pct = (isBatch && totalCount > 0)
+          ? Math.min(99, Math.round((downloadedCount / totalCount) * 100))
+          : 100;
+        evt.sender.send('download-progress', {
+          id,
+          percent: pct,
+          speed: isBatch
+            ? `[${downloadedCount}/${totalCount}] Atlandı (Mevcut): ${skippedSong}`
+            : `Mevcut dosya atlandı: ${skippedSong}`,
+          eta: ''
+        });
+      }
+
       // Subprocess percentage like "64.2%"
       const mPct = line.match(/(\d+(?:\.\d+)?)%/);
       if (mPct) {
@@ -546,38 +669,61 @@ ipcMain.handle('choose-folder', async () => {
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function buildArgs(url, format, quality, dir, autoTurkishSubtitles = true) {
-  const output = path.join(dir, '%(title)s.%(ext)s');
+function buildArgs(url, format = 'mp4', quality = '1080p', dir = DOWNLOADS_DIR, autoTurkishSubtitles = true, isPlaylist = false) {
+  const fmt = (format || 'mp4').toLowerCase();
+  const isAudio = ['mp3', 'flac', 'm4a', 'wav', 'opus', 'ogg'].includes(fmt);
+  const hasPlaylist = isPlaylist || url.includes('list=');
+  const output = hasPlaylist
+    ? path.join(dir, '%(playlist_title,playlist)s', '%(title)s.%(ext)s')
+    : path.join(dir, '%(title)s.%(ext)s');
 
-  if (format === 'mp3') {
+  if (isAudio) {
+    const audioFmt = fmt === 'ogg' ? 'vorbis' : fmt;
     const audioBitrate = quality || '320k';
-    return [
+    const args = [
       '--ffmpeg-location', path.dirname(FFMPEG_BIN),
-      '-x', '--audio-format', 'mp3',
-      '--audio-quality', audioBitrate,
+      '-x', '--audio-format', audioFmt,
       '-o', output,
-      '--no-playlist',
-      url,
+      '--no-overwrites',
     ];
+
+    if (['mp3', 'm4a', 'opus', 'vorbis'].includes(audioFmt)) {
+      args.push('--audio-quality', audioBitrate);
+    }
+
+    if (hasPlaylist) {
+      args.push('--yes-playlist');
+    } else {
+      args.push('--no-playlist');
+    }
+
+    args.push(url);
+    return args;
   }
 
-  // MP4
-  const heightMap = { '4K': 2160, '1080p': 1080, '720p': 720, '480p': 480 };
+  // Video formats: mp4, mkv, webm, mov
+  const heightMap = { '4K': 2160, '1440p': 1440, '1080p': 1080, '720p': 720, '480p': 480, '360p': 360 };
   const h = heightMap[quality] || 1080;
   const args = [
     '--ffmpeg-location', path.dirname(FFMPEG_BIN),
-    '-f', `bestvideo[height<=${h}][ext=mp4]+bestaudio[ext=m4a]/bestvideo[height<=${h}]+bestaudio/best[height<=${h}]`,
-    '--merge-output-format', 'mp4',
+    '-f', `bestvideo[height<=${h}]+bestaudio/best[height<=${h}]`,
+    '--merge-output-format', fmt,
     '-o', output,
-    '--no-playlist',
+    '--no-overwrites',
   ];
 
+  if (hasPlaylist) {
+    args.push('--yes-playlist');
+  } else {
+    args.push('--no-playlist');
+  }
+
   // Embed Turkish auto-subtitles or official subtitles
-  if (autoTurkishSubtitles !== false) {
+  if (autoTurkishSubtitles !== false && ['mp4', 'mkv', 'webm'].includes(fmt)) {
     args.push(
       '--write-subs',
       '--write-auto-subs',
-      '--sub-langs', 'tr,tr-orig',
+      '--sub-langs', 'tr,tr-en,tr-orig',
       '--embed-subs',
       '--compat-options', 'no-keep-subs'
     );
@@ -602,7 +748,12 @@ function parseFormats(formats) {
     return `${h}p`;
   });
 
-  return { video: videoQualities.length ? videoQualities : ['1080p', '720p'], audio: ['320k', '192k', '128k'] };
+  return {
+    video: videoQualities.length ? videoQualities : ['1080p', '720p'],
+    audio: ['320k', '256k', '192k', '128k'],
+    videoFormats: ['mp4', 'mkv', 'webm', 'mov'],
+    audioFormats: ['mp3', 'flac', 'm4a', 'wav', 'opus'],
+  };
 }
 
 function formatDuration(secs) {

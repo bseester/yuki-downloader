@@ -34,4 +34,11 @@ contextBridge.exposeInMainWorld('api', {
   getSettings:    ()         => ipcRenderer.invoke('get-settings'),
   saveSettings:   (settings) => ipcRenderer.invoke('save-settings', settings),
   getToolsStatus: ()         => ipcRenderer.invoke('get-tools-status'),
+
+  // Download History (persisted to disk)
+  getHistory:          ()      => ipcRenderer.invoke('get-history'),
+  saveHistoryEntry:    (entry) => ipcRenderer.invoke('save-history-entry', entry),
+  removeHistoryEntry:  (id)    => ipcRenderer.invoke('remove-history-entry', id),
+  clearHistory:        ()      => ipcRenderer.send('clear-history'),
 });
+
