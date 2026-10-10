@@ -7,6 +7,9 @@
   }
 
   console.log('🌐 Yuki: Running in Web / GitHub Pages mode. Initializing web adapter.');
+  document.documentElement.classList.add('is-web-mode');
+  if (document.body) document.body.classList.add('is-web-mode');
+  else document.addEventListener('DOMContentLoaded', () => document.body.classList.add('is-web-mode'));
 
   const progressListeners = new Set();
   const completeListeners = new Set();
